@@ -21,13 +21,22 @@ export default function Landing() {
 
       <header className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-6">
         <Logo />
-        <button
-          onClick={() => navigate("/login")}
-          data-testid="landing-login-top"
-          className="flex items-center gap-2 border border-hair px-4 py-2 font-mono text-[12px] uppercase tracking-widest text-bone/80 transition-colors duration-300 hover:border-emerald-seal hover:text-emerald-seal"
-        >
-          Masuk <ArrowRight size={14} weight="bold" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/verifikasi")}
+            data-testid="landing-verify-top"
+            className="hidden font-mono text-[12px] uppercase tracking-widest text-bone/60 transition-colors duration-300 hover:text-bone sm:inline"
+          >
+            Verifikasi Dokumen
+          </button>
+          <button
+            onClick={() => navigate("/login")}
+            data-testid="landing-login-top"
+            className="flex items-center gap-2 border border-hair px-4 py-2 font-mono text-[12px] uppercase tracking-widest text-bone/80 transition-colors duration-300 hover:border-emerald-seal hover:text-emerald-seal"
+          >
+            Masuk <ArrowRight size={14} weight="bold" />
+          </button>
+        </div>
       </header>
 
       <section className="mx-auto grid max-w-[1400px] grid-cols-1 gap-10 px-6 pb-24 pt-16 lg:grid-cols-12">
@@ -74,6 +83,13 @@ export default function Landing() {
             >
               Masuk
               <ArrowUpRight size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </button>
+            <button
+              onClick={() => navigate("/verifikasi")}
+              data-testid="landing-cta-verify"
+              className="font-mono text-[12px] uppercase tracking-widest text-emerald-seal/80 underline-offset-4 transition-colors duration-300 hover:text-emerald-seal hover:underline"
+            >
+              Verifikasi dokumen
             </button>
             <button
               onClick={() => navigate("/admin/login")}

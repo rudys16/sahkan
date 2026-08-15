@@ -13,6 +13,7 @@ import AuthorityQueue from "@/pages/AuthorityQueue";
 import AuthorityReview from "@/pages/AuthorityReview";
 import AuthorityHistory from "@/pages/AuthorityHistory";
 import Admin from "@/pages/Admin";
+import VerifyPublic from "@/pages/VerifyPublic";
 
 function Splash() {
   return (
@@ -44,6 +45,7 @@ function App() {
         <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#151B23", border: "1px solid rgba(232,230,225,0.12)", color: "#E8E6E1", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px" } }} />
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/verifikasi" element={<VerifyPublic />} />
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/admin/login" element={<PublicOnly><AdminLogin /></PublicOnly>} />
 

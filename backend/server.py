@@ -18,6 +18,7 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidSignature
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -39,6 +40,7 @@ SIGNING_KEY_ID = os.environ['SIGNING_KEY_ID']
 SIGNING_KEY_PRIVATE_PEM = base64.b64decode(os.environ['SIGNING_KEY_PRIVATE_B64'])
 SIGNING_KEY_PUBLIC_PEM = base64.b64decode(os.environ['SIGNING_KEY_PUBLIC_B64'])
 _signing_private_key = serialization.load_pem_private_key(SIGNING_KEY_PRIVATE_PEM, password=None)
+_signing_public_key = serialization.load_pem_public_key(SIGNING_KEY_PUBLIC_PEM)
 
 GENESIS_PREV_HASH = '0' * 64
 
@@ -91,6 +93,15 @@ def ecdsa_sign(envelope: dict) -> str:
     message = canonical_json(envelope).encode()
     sig = _signing_private_key.sign(message, ec.ECDSA(hashes.SHA384()))
     return sig.hex()
+
+
+def ecdsa_verify(envelope: dict, signature_hex: str) -> bool:
+    try:
+        _signing_public_key.verify(bytes.fromhex(signature_hex), canonical_json(envelope).encode(),
+                                    ec.ECDSA(hashes.SHA384()))
+        return True
+    except (InvalidSignature, ValueError):
+        return False
 
 
 def build_merkle_root(leaves: list) -> str:
@@ -664,6 +675,56 @@ async def authority_history(user: dict = Depends(require_authority_active)):
 async def public_key():
     return {'keyIdentifier': SIGNING_KEY_ID, 'algorithm': 'ECDSA P-384',
             'publicKeyPem': SIGNING_KEY_PUBLIC_PEM.decode()}
+
+
+@api.post('/verify/document')
+async def verify_document(file: Optional[UploadFile] = File(None), docHash: Optional[str] = Form(None)):
+    """Public verification. Upload a PDF (docHash recomputed) OR pass a docHash directly.
+    Returns the registered decision and whether its ECDSA P-384 signature is authentic.
+    """
+    computed = None
+    dh = None
+    if file is not None:
+        buf = await file.read()
+        if len(buf) < 5 or buf[:5] != b'%PDF-':
+            raise HTTPException(status_code=422, detail='File bukan PDF yang valid')
+        if len(buf) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail='Ukuran file melebihi 10MB')
+        chunks = [buf[i:i + 4096] for i in range(0, len(buf), 4096)]
+        leaves = [sha256_hex(c) for c in chunks]
+        dh = build_merkle_root(leaves)
+        computed = {'docHash': dh, 'fullFileHash': sha256_hex(buf),
+                    'chunkCount': len(chunks), 'fileSize': len(buf)}
+    elif docHash:
+        dh = docHash.strip().lower()
+    else:
+        raise HTTPException(status_code=422, detail='Unggah PDF atau masukkan docHash')
+
+    doc = await db.documents.find_one({'docHash': dh})
+    if not doc:
+        return {'found': False, 'docHash': dh, 'computed': computed}
+
+    inst = await db.institutions.find_one({'_id': doc['institutionId']})
+    signature_valid = None
+    if doc['status'] in ('APPROVED', 'REJECTED') and doc.get('signature'):
+        envelope = {
+            'docHash': doc['docHash'], 'status': doc['status'],
+            'rejectionReasonCode': doc.get('rejectionReasonCode') if doc['status'] == 'REJECTED' else None,
+            'authorityId': doc.get('decidedBy'), 'institutionId': doc['institutionId'],
+            'keyIdentifier': doc.get('keyIdentifier'), 'createdAt': doc.get('decidedAt'),
+        }
+        signature_valid = ecdsa_verify(envelope, doc['signature'])
+
+    return {
+        'found': True, 'docHash': doc['docHash'], 'status': doc['status'],
+        'rejectionReasonCode': doc.get('rejectionReasonCode'),
+        'institution': {'name': inst['name'], 'domain': inst['domain']} if inst else None,
+        'fileName': doc['fileName'], 'fileSize': doc['fileSize'], 'chunkCount': doc['chunkCount'],
+        'fullFileHash': doc['fullFileHash'], 'submittedAt': doc['submittedAt'],
+        'decidedAt': doc.get('decidedAt'), 'signature': doc.get('signature'),
+        'keyIdentifier': doc.get('keyIdentifier'), 'signatureValid': signature_valid,
+        'computed': computed,
+    }
 
 
 # ---------------------------------------------------------------------------
