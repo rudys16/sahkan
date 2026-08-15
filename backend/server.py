@@ -39,6 +39,7 @@ BLOB_KEY = bytes.fromhex(os.environ['BLOB_ENCRYPTION_KEY'])
 SIGNING_KEY_ID = os.environ['SIGNING_KEY_ID']
 SIGNING_KEY_PRIVATE_PEM = base64.b64decode(os.environ['SIGNING_KEY_PRIVATE_B64'])
 SIGNING_KEY_PUBLIC_PEM = base64.b64decode(os.environ['SIGNING_KEY_PUBLIC_B64'])
+COOKIE_SECURE = os.environ.get('COOKIE_SECURE', 'true').lower() == 'true'
 _signing_private_key = serialization.load_pem_private_key(SIGNING_KEY_PRIVATE_PEM, password=None)
 _signing_public_key = serialization.load_pem_public_key(SIGNING_KEY_PUBLIC_PEM)
 
@@ -156,8 +157,10 @@ def create_token(user: dict) -> str:
 
 def set_auth_cookie(response: Response, token: str):
     response.set_cookie(
-        key='access_token', value=token, httponly=True, secure=True,
-        samesite='none', max_age=86400, path='/',
+        key='access_token', value=token, httponly=True,
+        secure=COOKIE_SECURE,
+        samesite='none' if COOKIE_SECURE else 'lax',
+        max_age=86400, path='/',
     )
 
 
