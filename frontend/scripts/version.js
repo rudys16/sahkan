@@ -6,12 +6,27 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 
+// Fallback chain: git -> env CI (GITHUB_SHA/SOURCE_VERSION) -> version.json lama.
+// Build sandbox (mis. Emergent) tidak punya .git; env CI atau file lama
+// tetap memberi hash yang bermakna daripada "unknown".
 function gitShort() {
   try {
-    return execSync("git rev-parse --short HEAD", { cwd: root, encoding: "utf8" }).trim();
+    const sha = execSync("git rev-parse --short HEAD", { cwd: root, encoding: "utf8" }).trim();
+    if (sha) return sha;
   } catch {
-    return "unknown";
+    // no git in sandbox — fall through
   }
+  for (const key of ["GITHUB_SHA", "SOURCE_VERSION", "COMMIT_SHA"]) {
+    const v = process.env[key];
+    if (v) return v.slice(0, 7);
+  }
+  try {
+    const prev = JSON.parse(fs.readFileSync(path.join(root, "src", "version.json"), "utf8"));
+    if (prev.commit && prev.commit !== "unknown") return prev.commit;
+  } catch {
+    // no previous file — fall through
+  }
+  return "unknown";
 }
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
