@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -65,8 +65,11 @@
     "zod": "3.24.4"
   },
   "scripts": {
+    "prestart": "node scripts/version.js",
     "start": "craco start",
+    "prebuild": "node scripts/version.js",
     "build": "craco build",
+    "pretest": "node scripts/version.js",
     "test": "craco test"
   },
   "browserslist": {

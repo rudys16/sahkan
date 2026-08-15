@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { SignOut } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
+import { VersionBadge } from "@/components/VersionBadge";
 import { useAuth } from "@/context/AuthContext";
 
 export function Shell({ children, nav = [] }) {
@@ -53,6 +54,14 @@ export function Shell({ children, nav = [] }) {
         </div>
       </header>
       <main className="mx-auto max-w-[1400px] px-6 py-10">{children}</main>
+      <footer className="border-t border-hair">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4">
+          <VersionBadge />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-bone/25">
+            Verifikasi. Privat. Terbukti.
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

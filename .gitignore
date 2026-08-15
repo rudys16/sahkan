@@ -86,3 +86,5 @@ android-sdk/frontend/node_modules/.cache/default-development/0.pack
 credentials.json
 *.key
 .credentials
+# Generated build metadata
+frontend/src/version.json
