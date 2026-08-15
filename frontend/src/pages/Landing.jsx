@@ -5,9 +5,9 @@ import { ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
 
 const steps = [
-  { n: "01", t: "Ajukan", d: "Pemohon mengunggah dokumen PDF. Sistem memecah berkas menjadi potongan 4KB, membangun akar Merkle, lalu mengenkripsi salinannya." },
-  { n: "02", t: "Review", d: "Penerbit institusi meninjau dokumen dalam ruang aman. Skrip tertanam tidak pernah dieksekusi." },
-  { n: "03", t: "Terverifikasi", d: "Keputusan ditandatangani ECDSA P-384, dirantai-hash pada audit WORM. Berkas asli dimusnahkan permanen." },
+  { n: "01", t: "Ajukan", d: "Unggah dokumen Anda dalam hitungan detik. Sejak awal, berkas langsung diamankan dan hanya dapat diakses oleh institusi tujuan — privasi Anda terjaga sepenuhnya." },
+  { n: "02", t: "Review", d: "Institusi resmi meninjau dokumen Anda di ruang yang aman dan tenang. Setiap detail diperiksa dengan saksama sebelum keputusan diambil." },
+  { n: "03", t: "Terverifikasi", d: "Terima keputusan resmi bersegel yang tak dapat dipalsukan. Bukti keasliannya melekat selamanya, sementara berkas asli Anda dihapus demi keamanan." },
 ];
 
 export default function Landing() {
@@ -131,7 +131,7 @@ export default function Landing() {
 
       <footer className="mx-auto max-w-[1400px] px-6 py-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/30">
-          Sahkan · node:crypto-grade · scrypt · SHA-256 Merkle · AES-256-GCM · ECDSA P-384
+          Sahkan · Keaslian yang terbukti, privasi yang selalu terjaga
         </p>
       </footer>
     </div>
