@@ -6,8 +6,10 @@ import { Logo } from "@/components/Logo";
 import { Hash } from "@/components/Hash";
 import { SealStamp } from "@/components/SealStamp";
 import { StatusBadge } from "@/components/StatusBadge";
+import { VersionBadge } from "@/components/VersionBadge";
 import { api, apiError } from "@/lib/api";
 import { bytes, fmtDate } from "@/lib/format";
+import { computeDocumentHashes } from "@/lib/merkle";
 
 export default function VerifyPublic() {
   const navigate = useNavigate();
@@ -16,7 +18,9 @@ export default function VerifyPublic() {
   const [drag, setDrag] = useState(false);
   const [hash, setHash] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null); // 0..100 saat menghitung hash lokal
   const [result, setResult] = useState(null);
+  const [exactMatch, setExactMatch] = useState(false);
   const inputRef = useRef(null);
 
   const pick = (f) => {
@@ -27,24 +31,37 @@ export default function VerifyPublic() {
     }
     setFile(f);
     setResult(null);
+    setExactMatch(false);
   };
 
   const verify = async () => {
     setBusy(true);
     setResult(null);
+    setExactMatch(false);
     try {
-      const fd = new FormData();
+      let payload;
       if (mode === "file") {
         if (!file) { setBusy(false); return; }
-        fd.append("file", file);
+        // Hash dihitung di perangkat — berkas TIDAK pernah dikirim ke server.
+        setProgress(0);
+        payload = await computeDocumentHashes(file, (done, total) =>
+          setProgress(total > 0 ? Math.round((done / total) * 100) : 100)
+        );
+        setProgress(null);
       } else {
         if (!hash.trim()) { setBusy(false); return; }
-        fd.append("docHash", hash.trim());
+        payload = { docHash: hash.trim() };
       }
-      const { data } = await api.post("/verify/document", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post("/verify/document", payload);
       setResult(data);
+      if (data.found && mode === "file") {
+        setExactMatch(
+          data.docHash === payload.docHash &&
+          data.fullFileHash === payload.fullFileHash &&
+          data.chunkCount === payload.chunkCount &&
+          data.fileSize === payload.fileSize
+        );
+      }
       if (!data.found) toast.error("Dokumen tidak ditemukan dalam registri");
       else if (data.signatureValid) toast.success("Tanda tangan sah & terverifikasi");
       else if (data.signatureValid === false) toast.error("Tanda tangan TIDAK sah");
@@ -66,7 +83,7 @@ export default function VerifyPublic() {
     : null;
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-hair px-6 py-5">
         <button onClick={() => navigate("/")} data-testid="verify-logo"><Logo /></button>
         <button
@@ -78,7 +95,7 @@ export default function VerifyPublic() {
         </button>
       </header>
 
-      <div className="mx-auto max-w-[1100px] px-6 py-14">
+      <div className="mx-auto w-full max-w-[1100px] flex-1 px-6 py-14">
         <button
           onClick={() => navigate("/")}
           data-testid="verify-back"
@@ -92,9 +109,9 @@ export default function VerifyPublic() {
         </p>
         <h1 className="text-4xl font-medium tracking-tighter text-bone sm:text-5xl">Cek Keaslian Dokumen</h1>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-bone/55">
-          Unggah dokumen PDF atau masukkan <span className="font-mono text-bone/80">docHash</span> untuk memverifikasi
-          keputusan resmi institusi. Sistem menghitung ulang akar Merkle dan memeriksa tanda tangan
-          ECDSA P-384 terhadap kunci publik penerbit.
+          Pilih PDF atau masukkan <span className="font-mono text-bone/80">docHash</span> untuk memverifikasi
+          keputusan resmi institusi. Berkas di-hash di perangkat Anda dan <span className="text-bone/80">tidak pernah diunggah</span>;
+          server mencocokkan akar Merkle dengan registri dan memverifikasi tanda tangan ECDSA P-384 penerbit.
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -103,14 +120,14 @@ export default function VerifyPublic() {
             <div className="mb-6 flex border border-hair">
               <button
                 data-testid="verify-mode-file"
-                onClick={() => { setMode("file"); setResult(null); }}
+                onClick={() => { setMode("file"); setResult(null); setExactMatch(false); }}
                 className={`flex-1 px-4 py-3 font-mono text-[12px] uppercase tracking-widest transition-colors duration-300 ${mode === "file" ? "bg-emerald-seal text-ink" : "text-bone/50 hover:text-bone"}`}
               >
                 Unggah PDF
               </button>
               <button
                 data-testid="verify-mode-hash"
-                onClick={() => { setMode("hash"); setResult(null); }}
+                onClick={() => { setMode("hash"); setResult(null); setExactMatch(false); }}
                 className={`flex-1 px-4 py-3 font-mono text-[12px] uppercase tracking-widest transition-colors duration-300 ${mode === "hash" ? "bg-emerald-seal text-ink" : "text-bone/50 hover:text-bone"}`}
               >
                 Masukkan docHash
@@ -138,8 +155,13 @@ export default function VerifyPublic() {
                   <>
                     <UploadSimple size={40} className="mb-4 text-bone/40" />
                     <p className="text-sm text-bone/70">Tarik PDF ke sini atau klik untuk memilih</p>
-                    <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-bone/35">Berkas tidak diunggah ke server permanen</p>
+                    <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-bone/35">Berkas di-hash di perangkat Anda — tidak pernah diunggah</p>
                   </>
+                )}
+                {progress !== null && (
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-seal/20">
+                    <div className="h-full bg-emerald-seal transition-all duration-200" style={{ width: `${progress}%` }} />
+                  </div>
                 )}
               </div>
             ) : (
@@ -162,7 +184,7 @@ export default function VerifyPublic() {
               className="mt-6 flex w-full items-center justify-center gap-2 bg-emerald-seal px-6 py-4 font-mono text-[13px] font-medium uppercase tracking-widest text-ink transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-40"
             >
               {busy ? <CircleNotch size={16} className="animate-spin" /> : <MagnifyingGlass size={16} weight="bold" />}
-              Verifikasi Sekarang
+              {busy && progress !== null ? "Menghitung Hash…" : "Verifikasi Sekarang"}
             </button>
           </div>
 
@@ -230,9 +252,9 @@ export default function VerifyPublic() {
                     <p className="break-all font-mono text-[11px] text-bone/70" data-testid="verify-signature">{result.signature}</p>
                   </div>
                 )}
-                {result.computed && (
-                  <p className="mt-4 font-mono text-[11px] text-emerald-seal/80">
-                    ✓ Berkas Anda cocok persis dengan dokumen yang terdaftar.
+                {exactMatch && (
+                  <p className="mt-4 font-mono text-[11px] text-emerald-seal/80" data-testid="verify-exact-match">
+                    ✓ Berkas Anda cocok persis dengan dokumen yang terdaftar (dihitung di perangkat Anda).
                   </p>
                 )}
               </div>
@@ -240,6 +262,15 @@ export default function VerifyPublic() {
           </div>
         </div>
       </div>
+
+      <footer className="border-t border-hair">
+        <div className="mx-auto flex max-w-[1100px] items-center justify-between px-6 py-4">
+          <VersionBadge />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-bone/25">
+            Verifikasi. Privat. Terbukti.
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
