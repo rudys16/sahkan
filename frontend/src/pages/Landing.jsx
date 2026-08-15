@@ -5,9 +5,9 @@ import { ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
 
 const steps = [
-  { n: "01", t: "Ajukan", d: "Unggah dokumen Anda dalam hitungan detik. Sejak awal, berkas langsung diamankan dan hanya dapat diakses oleh institusi tujuan — privasi Anda terjaga sepenuhnya." },
-  { n: "02", t: "Review", d: "Institusi resmi meninjau dokumen Anda di ruang yang aman dan tenang. Setiap detail diperiksa dengan saksama sebelum keputusan diambil." },
-  { n: "03", t: "Terverifikasi", d: "Terima keputusan resmi bersegel yang tak dapat dipalsukan. Bukti keasliannya melekat selamanya, sementara berkas asli Anda dihapus demi keamanan." },
+  { n: "01", t: "Ajukan", d: "Cukup unggah — sisanya kami amankan. Dokumen Anda terlindungi seketika dan hanya terlihat oleh institusi yang Anda tuju. Tanpa ribet, tanpa rasa khawatir." },
+  { n: "02", t: "Review", d: "Ditinjau langsung oleh institusi resmi, bukan mesin, bukan pihak ketiga. Setiap dokumen diperiksa dengan teliti sebelum keputusan diterbitkan." },
+  { n: "03", t: "Terverifikasi", d: "Segel keaslian yang mustahil dipalsukan dan berlaku selamanya. Satu bukti tepercaya yang diakui, kapan pun dan di mana pun Anda membutuhkannya." },
 ];
 
 export default function Landing() {
@@ -46,7 +46,7 @@ export default function Landing() {
             transition={{ duration: 0.5 }}
             className="mb-8 font-mono text-[12px] uppercase tracking-[0.4em] text-emerald-seal"
           >
-            Platform Verifikasi Dokumen Institusional
+            Keaslian yang Bisa Dibuktikan, Privasi yang Dijaga
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
@@ -66,8 +66,9 @@ export default function Landing() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-8 max-w-xl text-base leading-relaxed text-bone/60"
           >
-            Sahkan memverifikasi keaslian dokumen antar-institusi tanpa pernah menyimpan
-            berkas Anda. Setiap keputusan ditandatangani secara kriptografis dan dapat diaudit selamanya.
+            Buktikan keaslian dokumen apa pun dalam hitungan detik — tanpa pernah
+            mengorbankan kerahasiaan. Sahkan menghubungkan Anda langsung dengan institusi
+            resmi untuk verifikasi yang cepat, aman, dan tak terbantahkan.
           </motion.p>
           <motion.div
             initial={{ opacity: 0 }}
@@ -111,6 +112,14 @@ export default function Landing() {
       </section>
 
       <section className="border-t border-hair">
+        <div className="mx-auto max-w-[1400px] px-8 pt-14 pb-2">
+          <h2 className="max-w-2xl text-3xl font-medium tracking-tight text-bone sm:text-4xl">
+            Tiga langkah menuju bukti yang <span className="text-emerald-seal">tak terbantahkan</span>.
+          </h2>
+          <p className="mt-3 max-w-xl text-sm text-bone/55">
+            Sederhana untuk Anda, meyakinkan bagi siapa pun yang menerima dokumen Anda.
+          </p>
+        </div>
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 md:grid-cols-3">
           {steps.map((s, i) => (
             <motion.div
@@ -131,7 +140,7 @@ export default function Landing() {
 
       <footer className="mx-auto max-w-[1400px] px-6 py-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/30">
-          Sahkan · Keaslian yang terbukti, privasi yang selalu terjaga
+          Sahkan — Standar baru kepercayaan dokumen di Indonesia
         </p>
       </footer>
     </div>
