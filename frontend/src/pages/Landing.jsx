@@ -138,10 +138,10 @@ export default function Landing() {
 
       <footer className="mx-auto max-w-[1400px] px-6 py-10">
         <div className="flex items-center justify-between">
-          <VersionBadge />
           <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/30">
             Sahkan — Standar baru kepercayaan dokumen di Indonesia
           </p>
+          <VersionBadge />
         </div>
       </footer>
     </div>

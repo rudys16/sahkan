@@ -85,10 +85,10 @@ export default function AdminLogin() {
       </div>
       <footer className="border-t border-hair">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between px-6 py-4">
-          <VersionBadge />
           <span className="font-mono text-[10px] uppercase tracking-widest text-bone/25">
             Verifikasi. Privat. Terbukti.
           </span>
+          <VersionBadge />
         </div>
       </footer>
     </div>

@@ -92,7 +92,8 @@ export default function Login() {
   };
 
   return (
-    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+    <div className="flex min-h-screen flex-col">
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-2">
       {/* left editorial column */}
       <div className="relative hidden flex-col justify-between overflow-hidden border-r border-hair p-12 lg:flex">
         <button onClick={() => navigate("/")} data-testid="login-back-home">
@@ -114,12 +115,9 @@ export default function Login() {
             melalui kode sekali pakai.
           </p>
         </div>
-        <div className="relative">
-          <VersionBadge className="mb-3" />
-          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/25">
-            Mode demo · kode OTP 123456
-          </p>
-        </div>
+        <p className="relative font-mono text-[11px] uppercase tracking-[0.3em] text-bone/25">
+          Mode demo · kode OTP 123456
+        </p>
       </div>
 
       {/* right form */}
@@ -210,12 +208,18 @@ export default function Login() {
               Masuk sebagai Admin →
             </button>
           </div>
-
-          <div className="mt-8 flex justify-center">
-            <VersionBadge />
-          </div>
         </div>
       </div>
+      </div>
+
+      <footer className="border-t border-hair">
+        <div className="mx-auto flex max-w-[1100px] items-center justify-between px-6 py-4">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-bone/25">
+            Verifikasi. Privat. Terbukti.
+          </span>
+          <VersionBadge />
+        </div>
+      </footer>
     </div>
   );
 }
