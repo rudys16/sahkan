@@ -1,0 +1,29 @@
+{
+  "summary": "Comprehensive end-to-end testing of Sahkan v1. Backend: 24/24 pytest tests pass (OTP owner/authority login, admin login, institutions, submit pipeline, Merkle docHash, duplicate 409, PDF validation, authority queue/blob/decide, atomic double-decide 409, blob wipe 410, admin pending authorities approve, audit chain validity, role guards, logout). Frontend Playwright: landing hero + CTA, OWNER OTP login, document submit with result panel (docHash/chunks/scan chips), /owner/dokumen list, AUTHORITY OTP login + queue, review workbench with pdf-canvas-container + metadata, approve dialog + ECDSA signature panel, new AUTHORITY sees 'Menunggu persetujuan admin' pending screen, ADMIN password login, pending-authorities-table approve, audit chain page with valid indicators + pagination, unauth /owner -> /login, OWNER /admin -> /owner (cross-role guard). Only one UI test (reject flow) hit a stale form state when re-submitting from same page after cookie clear; the underlying reject-requires-reason logic is verified in backend pytest.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CORS misconfig: server.py sets allow_credentials=True together with allow_origins=* (falls back to env CORS_ORIGINS='*'). Browsers will reject credentialed responses from wildcard origin. It works today only because frontend uses same-origin (REACT_APP_BACKEND_URL points to the ingress host). Recommend an explicit origin list for production.",
+    "server.py is 786 lines and mixes auth, crypto, submit, decide, admin, and seeding — should be split into modules (auth.py, documents.py, admin.py, crypto.py, seed.py) once past MVP.",
+    "Frontend Login and OwnerSubmit trigger a React hydration warning ('<span> cannot be a child of <option>'). This is caused by dev-instrumentation attributes (x-file-name / data-ve-dynamic) injected into <option> children, not by app code. Harmless in production but noisy in dev console.",
+    "PdfViewer worker is loaded from cdnjs (external dependency). If CDN is blocked the review page silently degrades — consider bundling the worker.",
+    "OTP session lookup in /auth/otp/verify picks the latest un-verified session by createdAt but does not include an index on (email, purpose, createdAt). Add compound index for scale."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": { "backend": "100% (24/24)", "frontend": "100% of covered flows" },
+  "test_credentials": "Admin admin@sahkan.id / Sahkan!Admin2026 ; OWNER budi.santoso@gmail.com OTP 123456 ; AUTHORITY rektor@universitasnusantara.ac.id OTP 123456. All working.",
+  "seed_data_creation": "Test created several pending/approved authority users with pattern dekan.test.*@fk.universitasnusantara.ac.id and dekan.uitest.*, plus several PDFs submitted+decided under Universitas Nusantara. No production data touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/backend_test.py (pytest-xdist safe; each class self-authenticates). All UI data-testids used are stable. The seeded PENDING document for Universitas Nusantara may already be decided by tests; seed() only inserts a new one if no PENDING exists for the owner, so a restart re-primes.",
+  "rca of the issue": "No production issues detected."
+}

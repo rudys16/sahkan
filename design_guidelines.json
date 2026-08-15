@@ -1,0 +1,76 @@
+{
+  "theme": "dark",
+  "language": "Indonesian",
+  "typography": {
+    "fonts": {
+      "headings_and_ui": "IBM Plex Sans",
+      "data_and_monospace": "IBM Plex Mono"
+    },
+    "installation_command": "yarn add @fontsource/ibm-plex-sans @fontsource/ibm-plex-mono",
+    "usage_rules": "Use IBM Plex Sans for general UI, buttons, and headings. Use IBM Plex Mono exclusively for ALL data (hashes, timestamps, numbers, table cells, identifiers). E.g., `font-mono tracking-tight`.",
+    "hierarchy": "H1 max `text-5xl` tracking-tighter font-medium. Body `text-base` text-[#E8E6E1]/80. Monospace hashes `text-sm` or `text-xs`. Do NOT center headings.",
+    "forbidden": "Inter, Roboto, Space Grotesk."
+  },
+  "colors": {
+    "palette": {
+      "background": "#0B0F14",
+      "panels": "#151B23",
+      "text_primary": "#E8E6E1",
+      "text_secondary": "rgba(232, 230, 225, 0.6)",
+      "border_hairline": "rgba(232, 230, 225, 0.12)",
+      "approved_emerald": "#2FBF71",
+      "rejected_red": "#F43F5E",
+      "pending_amber": "#F59E0B"
+    },
+    "usage_rules": "Dark slate theme. NO pure white (#FFFFFF) for text, use the warm off-white (#E8E6E1). NO default Tailwind colors (blue, purple, etc.). NO purple-blue gradient meshes. Colors are for status and focus only."
+  },
+  "visual_enhancers": {
+    "seal_system": "Verification stamps are the core visual signature. MUST implement as bespoke CSS/SVG components `SealStamp`. APPROVED: emerald stamp (#2FBF71), slightly rotated (e.g. -rotate-6 or rotate-3), textured ring + checkmark. REJECTED: red stamp (#F43F5E), broken/crossed out. PENDING: ghost amber stamp (#F59E0B).",
+    "textures": "Apply a subtle fine-grid or noise texture on dark surfaces. Use a transparent repeating SVG background (like a 4px dot grid at 5% opacity) or CSS noise.",
+    "interactions": "Micro-interactions: stamp preview on button hover. Custom focus rings (using #2FBF71), selection colors, and bespoke scrollbars (dark, thin, no gutter).",
+    "forbidden": "Gradient hero pills, 'Trusted by' badge walls, emoji decoration."
+  },
+  "grids_and_layouts": {
+    "style": "Editorial, asymmetric, and data-forward. Tables must have hairline rules (1px solid border_hairline), right-aligned numbers, grouped monospace hashes (e.g. `3f7a····9c2b`).",
+    "spacing": "Generous. Use `p-6`, `p-8`, `p-12`. Break the standard 12-column symmetry. Example: split screens (col-span-5 and col-span-7).",
+    "panels": "Panels use #151B23 with hairline borders. Minimal border-radius (e.g., `rounded-none` or `rounded-sm`). Do NOT use generic Shadcn cards with heavy shadows and rounded-xl.",
+    "forbidden": "Uniform rounded-2xl icon+title+text card grids. Symmetric generic layouts. Default Vercel/Stripe look."
+  },
+  "icons": {
+    "library": "Phosphor Icons",
+    "installation_command": "yarn add @phosphor-icons/react",
+    "style": "Use sharp, distinct, institutional icons (e.g., weight=\"regular\" or \"duotone\").",
+    "forbidden": "Emojis, generic soft icons."
+  },
+  "component_instructions": {
+    "landing": "Big statement hero + 3-step timeline (Ajukan → Review → Terverifikasi) + CTA 'Masuk'. Asymmetric split screen or editorial grid. No typical SaaS hero.",
+    "login": "Tabs (Pemohon / Penerbit). Email step followed by a 6-digit OTP step (styled as distinct large mono inputs). Include an Admin login link.",
+    "owner_submit": "FileDropzone for PDF (dashed hairline border, distinctive hover state). InstitutionSelect dropdown. scanReport chips. docHash displayed in large monospace.",
+    "owner_list": "Data-forward table. StatusBadge must utilize the Seal System (mini stamps).",
+    "authority_workbench": "Split screen layout. LEFT: pdf.js preview. RIGHT: metadata + DecisionPanel with huge, decisive Approve/Reject buttons that preview the stamp on hover.",
+    "admin_audit": "Pending authorities table + WORM audit chain viewer with tamper indicators. Heavy use of monospace hashes and timestamp data."
+  },
+  "motion": {
+    "rules": "Smooth, deliberate transitions. `duration-300 ease-out`. Do NOT use `transition-all`. Animate specific properties (opacity, transform, colors).",
+    "hover_states": "Buttons and list items must have distinct hover states (slight bg color shift, border highlight)."
+  },
+  "instructions_to_main_agent": [
+    "Update `tailwind.config.js` to strictly map to the exact palette (#0B0F14, #151B23, #E8E6E1, #2FBF71, #F43F5E, #F59E0B). Do NOT keep default colors.",
+    "Update `index.css` to import @fontsource/ibm-plex-sans and @fontsource/ibm-plex-mono. Set body font to IBM Plex Sans and background to #0B0F14.",
+    "Implement the `SealStamp` component with SVG paths and CSS transforms to look like a physical stamp (rotated, distressed ring).",
+    "Replace generic shadcn `<Card>` rounded corners with sharp/hairline borders. Override the rounded variables to `0px` or `2px`.",
+    "Format document hashes elegantly using IBM Plex Mono, e.g., `3f7a····9c2b`.",
+    "Ensure the entire UI is in Indonesian (Ajukan, Review, Terverifikasi, Masuk, Pemohon, Penerbit).",
+    "Always add `data-testid` attributes to interactive elements and inputs."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that look hand-crafted.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy and hairline borders, rather than heavy drop shadows.",
+    "You MUST NOT apply universal transition (e.g., transition: all).",
+    "You MUST NOT center align the app container.",
+    "Every interaction needs micro-animations (hover states, deliberate focus rings). Static = dead.",
+    "Use custom scrollbars with no gutter.",
+    "Prioritize using pre-existing components from src/components/ui but restyle them to fit the editorial institutional look."
+  ]
+}
