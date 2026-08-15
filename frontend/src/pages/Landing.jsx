@@ -102,7 +102,12 @@ export default function Landing() {
         </div>
 
         <div className="flex items-center justify-center lg:col-span-4">
-          <SealStamp status="APPROVED" size={220} animate />
+          <img
+            src="/sahkan-logo.png"
+            alt="Sahkan — Verifikasi. Privat. Terbukti."
+            data-testid="landing-hero-logo"
+            className="w-full max-w-[340px] animate-fade-up drop-shadow-[0_18px_40px_rgba(20,52,78,0.12)]"
+          />
         </div>
       </section>
 

@@ -42,7 +42,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#151B23", border: "1px solid rgba(232,230,225,0.12)", color: "#E8E6E1", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px" } }} />
+        <Toaster theme="light" position="top-right" toastOptions={{ style: { background: "#FFFFFF", border: "1px solid rgba(20,52,78,0.14)", color: "#14344E", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px" } }} />
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/verifikasi" element={<VerifyPublic />} />

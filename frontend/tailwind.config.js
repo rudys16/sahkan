@@ -5,26 +5,32 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        ink: "#0B0F14",
-        panel: "#151B23",
-        "panel-hi": "#1B222B",
-        bone: "#E8E6E1",
-        emerald: { seal: "#2FBF71" },
-        rose: { seal: "#F43F5E" },
-        amber: { seal: "#F59E0B" },
-        hair: "rgba(232,230,225,0.12)",
-        background: "#0B0F14",
-        foreground: "#E8E6E1",
-        border: "rgba(232,230,225,0.12)",
-        input: "rgba(232,230,225,0.12)",
-        ring: "#2FBF71",
-        primary: { DEFAULT: "#2FBF71", foreground: "#0B0F14" },
-        secondary: { DEFAULT: "#151B23", foreground: "#E8E6E1" },
-        muted: { DEFAULT: "#151B23", foreground: "rgba(232,230,225,0.6)" },
-        accent: { DEFAULT: "#1B222B", foreground: "#E8E6E1" },
-        destructive: { DEFAULT: "#F43F5E", foreground: "#E8E6E1" },
-        popover: { DEFAULT: "#151B23", foreground: "#E8E6E1" },
-        card: { DEFAULT: "#151B23", foreground: "#E8E6E1" },
+        // Light theme tokens (names kept for reuse across components):
+        // "ink"  = base surface (white)
+        // "bone" = primary text (deep navy)
+        // "panel"= raised light panel
+        // emerald.seal = brand teal (approved / primary)
+        ink: "#FFFFFF",
+        panel: "#F4F7F9",
+        "panel-hi": "#EAF1F4",
+        bone: "#14344E",
+        emerald: { seal: "#12A093" },
+        rose: { seal: "#E24C3C" },
+        amber: { seal: "#D98324" },
+        navy: { DEFAULT: "#163C5C", deep: "#0F2E47" },
+        hair: "rgba(20,52,78,0.12)",
+        background: "#FFFFFF",
+        foreground: "#14344E",
+        border: "rgba(20,52,78,0.12)",
+        input: "rgba(20,52,78,0.14)",
+        ring: "#12A093",
+        primary: { DEFAULT: "#12A093", foreground: "#FFFFFF" },
+        secondary: { DEFAULT: "#F4F7F9", foreground: "#14344E" },
+        muted: { DEFAULT: "#F4F7F9", foreground: "rgba(20,52,78,0.6)" },
+        accent: { DEFAULT: "#EAF1F4", foreground: "#14344E" },
+        destructive: { DEFAULT: "#E24C3C", foreground: "#FFFFFF" },
+        popover: { DEFAULT: "#FFFFFF", foreground: "#14344E" },
+        card: { DEFAULT: "#FFFFFF", foreground: "#14344E" },
       },
       fontFamily: {
         sans: ["'IBM Plex Sans'", "system-ui", "sans-serif"],

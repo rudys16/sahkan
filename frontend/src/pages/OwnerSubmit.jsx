@@ -154,9 +154,9 @@ export default function OwnerSubmit() {
                       data-testid={`scan-chip-${k}`}
                       className="inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[11px]"
                       style={{
-                        color: v ? "#F59E0B" : "rgba(232,230,225,0.5)",
-                        borderColor: v ? "#F59E0B55" : "var(--hair)",
-                        background: v ? "#F59E0B12" : "transparent",
+                        color: v ? "#D98324" : "rgba(20,52,78,0.45)",
+                        borderColor: v ? "#D9832455" : "var(--hair)",
+                        background: v ? "#D9832414" : "transparent",
                       }}
                     >
                       {v && <Warning size={12} weight="fill" />}

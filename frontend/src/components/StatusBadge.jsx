@@ -2,9 +2,9 @@ import React from "react";
 import { REASON_LABELS } from "@/lib/format";
 
 const CFG = {
-  PENDING: { color: "#F59E0B", label: "MENUNGGU", dot: true },
-  APPROVED: { color: "#2FBF71", label: "TERVERIFIKASI" },
-  REJECTED: { color: "#F43F5E", label: "DITOLAK" },
+  PENDING: { color: "#D98324", label: "MENUNGGU", dot: true },
+  APPROVED: { color: "#12A093", label: "TERVERIFIKASI" },
+  REJECTED: { color: "#E24C3C", label: "DITOLAK" },
 };
 
 export function StatusBadge({ status, reasonCode, className = "" }) {

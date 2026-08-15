@@ -200,9 +200,9 @@ export default function VerifyPublic() {
                   className="mb-6 flex items-center gap-3 border px-4 py-3"
                   data-testid="verify-verdict"
                   style={{
-                    color: verdict === "VALID" ? "#2FBF71" : verdict === "INVALID" ? "#F43F5E" : "#F59E0B",
-                    borderColor: verdict === "VALID" ? "#2FBF7155" : verdict === "INVALID" ? "#F43F5E55" : "#F59E0B55",
-                    background: verdict === "VALID" ? "#2FBF7112" : verdict === "INVALID" ? "#F43F5E12" : "#F59E0B12",
+                    color: verdict === "VALID" ? "#12A093" : verdict === "INVALID" ? "#E24C3C" : "#D98324",
+                    borderColor: verdict === "VALID" ? "#12A09355" : verdict === "INVALID" ? "#E24C3C55" : "#D9832455",
+                    background: verdict === "VALID" ? "#12A09314" : verdict === "INVALID" ? "#E24C3C14" : "#D9832414",
                   }}
                 >
                   {verdict === "VALID" ? <SealCheck size={22} weight="fill" /> : verdict === "INVALID" ? <SealWarning size={22} weight="fill" /> : <ShieldCheck size={22} />}

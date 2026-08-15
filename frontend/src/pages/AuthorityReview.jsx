@@ -104,7 +104,7 @@ export default function AuthorityReview() {
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(doc.scanReport || {}).map(([k, v]) => (
                     <span key={k} data-testid={`review-scan-${k}`} className="inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[11px]"
-                      style={{ color: v ? "#F59E0B" : "rgba(232,230,225,0.5)", borderColor: v ? "#F59E0B55" : "var(--hair)", background: v ? "#F59E0B12" : "transparent" }}>
+                      style={{ color: v ? "#D98324" : "rgba(20,52,78,0.45)", borderColor: v ? "#D9832455" : "var(--hair)", background: v ? "#D9832414" : "transparent" }}>
                       {v && <Warning size={12} weight="fill" />} {SCAN_LABELS[k]}
                     </span>
                   ))}
@@ -118,7 +118,7 @@ export default function AuthorityReview() {
                   <ShieldCheck size={16} weight="fill" /> Tanda Tangan ECDSA P-384
                 </div>
                 <div className="space-y-3 font-mono text-[12px]">
-                  <Row label="Status"><span style={{ color: done.status === "APPROVED" ? "#2FBF71" : "#F43F5E" }}>{done.status}</span></Row>
+                  <Row label="Status"><span style={{ color: done.status === "APPROVED" ? "#12A093" : "#E24C3C" }}>{done.status}</span></Row>
                   <Row label="keyId"><span className="text-bone/70">{done.keyIdentifier}</span></Row>
                   <div>
                     <p className="mb-1 text-bone/45">signature</p>
@@ -205,7 +205,7 @@ export default function AuthorityReview() {
                 disabled={busy}
                 data-testid="confirm-decide"
                 className="flex flex-1 items-center justify-center gap-2 px-4 py-3 font-mono text-[12px] font-medium uppercase tracking-widest text-ink transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
-                style={{ background: confirm === "APPROVED" ? "#2FBF71" : "#F43F5E" }}
+                style={{ background: confirm === "APPROVED" ? "#12A093" : "#E24C3C" }}
               >
                 {busy ? <CircleNotch size={14} className="animate-spin" /> : null}
                 {confirm === "APPROVED" ? "Terbitkan Verifikasi" : "Tolak Dokumen"}

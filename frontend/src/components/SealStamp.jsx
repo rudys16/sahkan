@@ -3,9 +3,9 @@ import React from "react";
 // Bespoke verification seal. status: PENDING | APPROVED | REJECTED
 export function SealStamp({ status = "PENDING", size = 96, animate = false, className = "" }) {
   const map = {
-    APPROVED: { color: "#2FBF71", label: "TERVERIFIKASI", rot: -6 },
-    REJECTED: { color: "#F43F5E", label: "DITOLAK", rot: -9 },
-    PENDING: { color: "#F59E0B", label: "MENUNGGU", rot: -4 },
+    APPROVED: { color: "#12A093", label: "TERVERIFIKASI", rot: -6 },
+    REJECTED: { color: "#E24C3C", label: "DITOLAK", rot: -9 },
+    PENDING: { color: "#D98324", label: "MENUNGGU", rot: -4 },
   };
   const s = map[status] || map.PENDING;
   const ghost = status === "PENDING";
