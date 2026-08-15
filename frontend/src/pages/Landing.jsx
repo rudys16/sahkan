@@ -14,9 +14,6 @@ export default function Landing() {
   const navigate = useNavigate();
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute -right-24 top-0 opacity-[0.06]">
-        <img src="/sahkan-logo-transparent.png" alt="" className="w-[560px]" />
-      </div>
 
       <header className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-6">
         <Logo />
