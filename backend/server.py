@@ -9,6 +9,7 @@ import hmac
 import base64
 import hashlib
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -19,6 +20,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidSignature
+from pydantic import BaseModel
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -680,32 +682,27 @@ async def public_key():
             'publicKeyPem': SIGNING_KEY_PUBLIC_PEM.decode()}
 
 
+class VerifyRequest(BaseModel):
+    docHash: str
+    fullFileHash: Optional[str] = None
+    chunkCount: Optional[int] = None
+    fileSize: Optional[int] = None
+
+
 @api.post('/verify/document')
-async def verify_document(file: Optional[UploadFile] = File(None), docHash: Optional[str] = Form(None)):
-    """Public verification. Upload a PDF (docHash recomputed) OR pass a docHash directly.
-    Returns the registered decision and whether its ECDSA P-384 signature is authentic.
+async def verify_document(req: VerifyRequest):
+    """Public verification (privacy-first): the client computes the Merkle root
+    (docHash) locally and sends only hashes + metadata — the document file itself
+    never leaves the device. The server looks up the registered decision and
+    returns whether its ECDSA P-384 signature is authentic.
     """
-    computed = None
-    dh = None
-    if file is not None:
-        buf = await file.read()
-        if len(buf) < 5 or buf[:5] != b'%PDF-':
-            raise HTTPException(status_code=422, detail='File bukan PDF yang valid')
-        if len(buf) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail='Ukuran file melebihi 10MB')
-        chunks = [buf[i:i + 4096] for i in range(0, len(buf), 4096)]
-        leaves = [sha256_hex(c) for c in chunks]
-        dh = build_merkle_root(leaves)
-        computed = {'docHash': dh, 'fullFileHash': sha256_hex(buf),
-                    'chunkCount': len(chunks), 'fileSize': len(buf)}
-    elif docHash:
-        dh = docHash.strip().lower()
-    else:
-        raise HTTPException(status_code=422, detail='Unggah PDF atau masukkan docHash')
+    dh = req.docHash.strip().lower()
+    if not re.fullmatch(r'[0-9a-f]{64}', dh):
+        raise HTTPException(status_code=422, detail='docHash tidak valid')
 
     doc = await db.documents.find_one({'docHash': dh})
     if not doc:
-        return {'found': False, 'docHash': dh, 'computed': computed}
+        return {'found': False, 'docHash': dh}
 
     inst = await db.institutions.find_one({'_id': doc['institutionId']})
     signature_valid = None
@@ -726,7 +723,6 @@ async def verify_document(file: Optional[UploadFile] = File(None), docHash: Opti
         'fullFileHash': doc['fullFileHash'], 'submittedAt': doc['submittedAt'],
         'decidedAt': doc.get('decidedAt'), 'signature': doc.get('signature'),
         'keyIdentifier': doc.get('keyIdentifier'), 'signatureValid': signature_valid,
-        'computed': computed,
     }
 
 
