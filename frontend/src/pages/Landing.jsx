@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
+import { VersionBadge } from "@/components/VersionBadge";
 
 const steps = [
   { n: "01", t: "Ajukan", d: "Cukup unggah — sisanya kami amankan. Dokumen Anda terlindungi seketika dan hanya terlihat oleh institusi yang Anda tuju. Tanpa ribet, tanpa rasa khawatir." },
@@ -136,9 +137,12 @@ export default function Landing() {
       </section>
 
       <footer className="mx-auto max-w-[1400px] px-6 py-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/30">
-          Sahkan — Standar baru kepercayaan dokumen di Indonesia
-        </p>
+        <div className="flex items-center justify-between">
+          <VersionBadge />
+          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/30">
+            Sahkan — Standar baru kepercayaan dokumen di Indonesia
+          </p>
+        </div>
       </footer>
     </div>
   );

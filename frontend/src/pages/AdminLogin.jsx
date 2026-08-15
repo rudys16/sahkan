@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, CircleNotch, ShieldCheck } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
+import { VersionBadge } from "@/components/VersionBadge";
 import { api, apiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -82,6 +83,14 @@ export default function AdminLogin() {
           </button>
         </div>
       </div>
+      <footer className="border-t border-hair">
+        <div className="mx-auto flex max-w-[1100px] items-center justify-between px-6 py-4">
+          <VersionBadge />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-bone/25">
+            Verifikasi. Privat. Terbukti.
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

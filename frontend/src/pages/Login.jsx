@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, CircleNotch } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
 import { SealStamp } from "@/components/SealStamp";
+import { VersionBadge } from "@/components/VersionBadge";
 import { api, apiError } from "@/lib/api";
 import { useAuth, homeFor } from "@/context/AuthContext";
 
@@ -113,9 +114,12 @@ export default function Login() {
             melalui kode sekali pakai.
           </p>
         </div>
-        <p className="relative font-mono text-[11px] uppercase tracking-[0.3em] text-bone/25">
-          Mode demo · kode OTP 123456
-        </p>
+        <div className="relative">
+          <VersionBadge className="mb-3" />
+          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-bone/25">
+            Mode demo · kode OTP 123456
+          </p>
+        </div>
       </div>
 
       {/* right form */}
@@ -205,6 +209,10 @@ export default function Login() {
             >
               Masuk sebagai Admin →
             </button>
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <VersionBadge />
           </div>
         </div>
       </div>
