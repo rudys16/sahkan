@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
-import { SealStamp } from "@/components/SealStamp";
 
 const steps = [
   { n: "01", t: "Ajukan", d: "Pemohon mengunggah dokumen PDF. Sistem memecah berkas menjadi potongan 4KB, membangun akar Merkle, lalu mengenkripsi salinannya." },
@@ -15,8 +14,8 @@ export default function Landing() {
   const navigate = useNavigate();
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute -right-40 top-10 opacity-[0.06]">
-        <SealStamp status="APPROVED" size={520} />
+      <div className="pointer-events-none absolute -right-24 top-0 opacity-[0.06]">
+        <img src="/sahkan-logo-transparent.png" alt="" className="w-[560px]" />
       </div>
 
       <header className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-6">
@@ -103,10 +102,10 @@ export default function Landing() {
 
         <div className="flex items-center justify-center lg:col-span-4">
           <img
-            src="/sahkan-logo.png"
+            src="/sahkan-logo-transparent.png"
             alt="Sahkan — Verifikasi. Privat. Terbukti."
             data-testid="landing-hero-logo"
-            className="w-full max-w-[340px] animate-fade-up drop-shadow-[0_18px_40px_rgba(20,52,78,0.12)]"
+            className="w-full max-w-[360px] animate-fade-up"
           />
         </div>
       </section>
