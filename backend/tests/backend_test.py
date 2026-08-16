@@ -1,6 +1,9 @@
-"""Sahkan backend tests - covers register, login, submit, decide, admin, audit chain."""
+"""Sahkan backend tests - covers register, login, submit, decide, admin, audit chain.
+
+Self-contained: semua data (owner, authority, institusi) dibuat lewat register flow
+dan admin approve. Hanya akun admin@sahkan.id yang dianggap sudah ada (seed).
+"""
 import os
-import io
 import time
 import requests
 import pytest
@@ -8,7 +11,8 @@ import pytest
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://doc-sahkan.preview.emergentagent.com').rstrip('/')
 API = f"{BASE_URL}/api"
 OTP = "123456"
-DEMO_PASSWORD = "Sahkan!2026"  # password for seeded demo accounts
+ADMIN_EMAIL = "admin@sahkan.id"
+ADMIN_PASSWORD = "Sahkan!Admin2026"
 
 # ---------- helpers ----------
 def make_pdf(title: str = "Test Doc") -> bytes:
@@ -49,13 +53,49 @@ def login(session: requests.Session, email: str, password: str):
     return r.json()["user"]
 
 
+def admin_session() -> requests.Session:
+    s = requests.Session()
+    r = s.post(f"{API}/auth/admin/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+    assert r.status_code == 200, r.text
+    return s
+
+
 def seed_institution_id(domain: str) -> str:
     r = requests.get(f"{API}/institutions/active")
     assert r.status_code == 200
     for i in r.json():
         if i["domain"] == domain:
             return i["institutionId"]
-    pytest.skip(f"Institusi {domain} tidak ada")
+    pytest.fail(f"Institusi {domain} tidak ada")
+
+
+def new_owner(session: requests.Session = None, prefix: str = "owner") -> requests.Session:
+    """Daftarkan OWNER baru dan kembalikan session yang sudah login."""
+    s = session or requests.Session()
+    email = f"{prefix}.{int(time.time_ns())}@example.com"
+    user = register(s, "Test Owner", email, "Sah!12345678", "OWNER")
+    assert user["approvalStatus"] == "ACTIVE"
+    return s
+
+
+def create_authority_with_institution(admin: requests.Session, prefix: str = "auth",
+                                      name: str = "Test Authority"):
+    """Daftarkan AUTHORITY + institusi baru, lalu admin approve.
+    Return (authority_session, institution_id)."""
+    ts = int(time.time_ns())
+    inst_domain = f"{prefix}{ts}.ac.id"
+    email = f"{prefix}{ts}@{inst_domain}"
+    s = requests.Session()
+    user = register(s, name, email, "Sah!12345678", "AUTHORITY",
+                    newInstitutionName=f"{prefix.capitalize()} Test {ts}",
+                    newInstitutionDomain=inst_domain)
+    assert user["approvalStatus"] == "PENDING", "authority baru harus PENDING"
+    pending = admin.get(f"{API}/admin/pending-authorities").json()
+    target = [p for p in pending if p["email"] == email]
+    assert target, f"authority {email} tidak muncul di pending list"
+    r = admin.post(f"{API}/admin/authorities/{target[0]['userId']}/approve")
+    assert r.status_code == 200, r.text
+    return s, seed_institution_id(inst_domain)
 
 
 # ---------- REGISTRATION ----------
@@ -81,7 +121,7 @@ class TestRegister:
         assert r.status_code == 409
 
     def test_register_authority_requires_institution(self):
-        email = f"noinst_{int(time.time())}@universitasnusantara.ac.id"
+        email = f"noinst_{int(time.time())}@example.com"
         r = requests.post(f"{API}/auth/register/request",
                           json={"name": "No Inst", "email": email, "password": "Sah!12345678", "role": "AUTHORITY"})
         assert r.status_code == 422
@@ -134,12 +174,12 @@ class TestLogin:
 class TestAdminAuth:
     def test_admin_login_success(self):
         s = requests.Session()
-        r = s.post(f"{API}/auth/admin/login", json={"email": "admin@sahkan.id", "password": "Sahkan!Admin2026"})
+        r = s.post(f"{API}/auth/admin/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
         assert r.status_code == 200, r.text
         assert r.json()["user"]["role"] == "ADMIN"
 
     def test_admin_login_bad_password(self):
-        r = requests.post(f"{API}/auth/admin/login", json={"email": "admin@sahkan.id", "password": "wrong"})
+        r = requests.post(f"{API}/auth/admin/login", json={"email": ADMIN_EMAIL, "password": "wrong"})
         assert r.status_code in (401, 429)
 
     def test_me_unauthenticated(self):
@@ -150,44 +190,47 @@ class TestAdminAuth:
 # ---------- Institutions ----------
 class TestInstitutions:
     def test_active_institutions_public(self):
+        admin = admin_session()
+        _, inst_id = create_authority_with_institution(admin, prefix="insta")
         r = requests.get(f"{API}/institutions/active")
         assert r.status_code == 200
         insts = r.json()
-        assert len(insts) >= 3
-        domains = [i["domain"] for i in insts]
-        assert "universitasnusantara.ac.id" in domains
+        ids = [i["institutionId"] for i in insts]
+        assert inst_id in ids
 
     def test_available_institutions_have_active_authority(self):
+        admin = admin_session()
+        _, inst_id = create_authority_with_institution(admin, prefix="instb")
         r = requests.get(f"{API}/institutions/available")
         assert r.status_code == 200
         insts = r.json()
-        # Seed institutions have ACTIVE authorities -> must be present
-        domains = [i["domain"] for i in insts]
-        assert "universitasnusantara.ac.id" in domains
-        assert len(insts) >= 1
+        ids = [i["institutionId"] for i in insts]
+        assert inst_id in ids
 
 
 # ---------- Owner submit flow ----------
 class TestSubmitAndDecide:
     @pytest.fixture(scope="class")
     @classmethod
+    def admin(cls):
+        return admin_session()
+
+    @pytest.fixture(scope="class")
+    @classmethod
     def owner_session(cls):
-        s = requests.Session()
-        email = f"budi.submit.{int(time.time())}@example.com"
-        register(s, "Budi Submit", email, "Sah!12345678", "OWNER")
+        return new_owner(prefix="budi")
+
+    @pytest.fixture(scope="class")
+    @classmethod
+    def authority_session(cls, admin):
+        s, inst_id = create_authority_with_institution(admin, prefix="univ")
+        cls.inst_id = inst_id
         return s
 
     @pytest.fixture(scope="class")
     @classmethod
-    def authority_session(cls):
-        s = requests.Session()
-        login(s, "rektor@universitasnusantara.ac.id", DEMO_PASSWORD)
-        return s
-
-    @pytest.fixture(scope="class")
-    @classmethod
-    def universitas_id(cls):
-        return seed_institution_id("universitasnusantara.ac.id")
+    def universitas_id(cls, authority_session):
+        return cls.inst_id
 
     def test_submit_pdf(self, owner_session, universitas_id):
         pdf = make_pdf(f"Test-{time.time_ns()}")
@@ -262,11 +305,9 @@ class TestSubmitAndDecide:
 # ---------- Reject flow with reason ----------
 class TestRejectFlow:
     def test_reject_requires_reason(self):
-        owner = requests.Session()
-        login(owner, "budi.santoso@gmail.com", DEMO_PASSWORD)
-        auth = requests.Session()
-        login(auth, "rektor@universitasnusantara.ac.id", DEMO_PASSWORD)
-        inst_id = seed_institution_id("universitasnusantara.ac.id")
+        admin = admin_session()
+        owner = new_owner(prefix="rejown")
+        auth, inst_id = create_authority_with_institution(admin, prefix="rej")
 
         pdf = make_pdf(f"Reject-{time.time_ns()}")
         r = owner.post(f"{API}/documents/submit",
@@ -293,17 +334,16 @@ class TestAdmin:
     @pytest.fixture(scope="class")
     @classmethod
     def admin_session(cls):
-        s = requests.Session()
-        r = s.post(f"{API}/auth/admin/login", json={"email": "admin@sahkan.id", "password": "Sahkan!Admin2026"})
-        assert r.status_code == 200
-        return s
+        return admin_session()
 
     def test_pending_authorities_lists(self, admin_session):
-        # Register a new authority joining an existing institution -> PENDING
+        # Daftarkan AUTHORITY baru + institusi baru -> PENDING, muncul di pending list
         s = requests.Session()
-        inst_id = seed_institution_id("universitasnusantara.ac.id")
-        new_email = f"dekan.test.{int(time.time())}@fk.universitasnusantara.ac.id"
-        user = register(s, "Dekan Test", new_email, "Sah!12345678", "AUTHORITY", institutionId=inst_id)
+        ts = int(time.time_ns())
+        inst_domain = f"dekan{ts}.ac.id"
+        new_email = f"dekan{ts}@{inst_domain}"
+        user = register(s, "Dekan Test", new_email, "Sah!12345678", "AUTHORITY",
+                        newInstitutionName=f"Dekan Test {ts}", newInstitutionDomain=inst_domain)
         assert user["approvalStatus"] == "PENDING"
         r = admin_session.get(f"{API}/admin/pending-authorities")
         assert r.status_code == 200
@@ -330,8 +370,7 @@ class TestAdmin:
             assert len(e["prevLogHash"]) == 64
 
     def test_non_admin_cannot_access_admin(self):
-        owner = requests.Session()
-        login(owner, "budi.santoso@gmail.com", DEMO_PASSWORD)
+        owner = new_owner(prefix="na")
         r = owner.get(f"{API}/admin/pending-authorities")
         assert r.status_code == 403
 
@@ -339,14 +378,12 @@ class TestAdmin:
 # ---------- Guards ----------
 class TestGuards:
     def test_owner_cannot_access_authority_queue(self):
-        s = requests.Session()
-        login(s, "budi.santoso@gmail.com", DEMO_PASSWORD)
+        s = new_owner(prefix="guard")
         r = s.get(f"{API}/authority/queue")
         assert r.status_code == 403
 
     def test_logout_clears_session(self):
-        s = requests.Session()
-        login(s, "budi.santoso@gmail.com", DEMO_PASSWORD)
+        s = new_owner(prefix="logout")
         r = s.post(f"{API}/auth/logout")
         assert r.status_code == 200
         r = s.get(f"{API}/auth/me")

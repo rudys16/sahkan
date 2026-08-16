@@ -781,20 +781,6 @@ async def verify_document(req: VerifyRequest):
 # ---------------------------------------------------------------------------
 # Startup: indexes + seed
 # ---------------------------------------------------------------------------
-def make_pdf(title: str) -> bytes:
-    body = (
-        b'%PDF-1.4\n'
-        b'1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n'
-        b'2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n'
-        b'3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
-        b'/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>endobj\n'
-        b'4 0 obj<< /Length 74 >>stream\n'
-        b'BT /F1 24 Tf 72 700 Td (' + title.encode() + b') Tj ET\n'
-        b'endstream endobj\n'
-        b'5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n'
-        b'trailer<< /Root 1 0 R >>\n%%EOF'
-    )
-    return body
 
 
 async def create_indexes():
@@ -811,22 +797,9 @@ async def create_indexes():
     await db.documentChunks.create_index([('docHash', 1), ('chunkIndex', 1)], unique=True)
 
 
-SEED_INSTITUTIONS = [
-    ('Universitas Nusantara', 'universitasnusantara.ac.id', 'rektor@universitasnusantara.ac.id'),
-    ('Kementerian Kesehatan RI', 'kemkes.go.id', 'sekjen@kemkes.go.id'),
-    ('PT Cipta Karya', 'ciptakarya.co.id', 'direktur@ciptakarya.co.id'),
-]
-
-SEED_AUTHORITY_NAMES = {
-    'rektor@universitasnusantara.ac.id': 'Rektor Universitas Nusantara',
-    'sekjen@kemkes.go.id': 'Sekretaris Jenderal Kemenkes',
-    'direktur@ciptakarya.co.id': 'Direktur PT Cipta Karya',
-}
-
-DEMO_PASSWORD = os.environ.get('DEMO_PASSWORD', 'Sahkan!2026')
-
-
 async def seed():
+    """Seed hanya menjamin akun admin (ADMIN_EMAIL) ada. Jika admin sudah ada,
+    password yang tersimpan TIDAK diubah - seed tidak pernah me-reset password."""
     admin = await db.users.find_one({'email': ADMIN_EMAIL, 'role': 'ADMIN'})
     if not admin:
         admin = {
@@ -836,65 +809,6 @@ async def seed():
             'isVerified': True, 'createdAt': iso(now_utc()),
         }
         await db.users.insert_one(admin)
-    elif not scrypt_verify(ADMIN_PASSWORD, admin.get('passwordHash', '')):
-        await db.users.update_one({'_id': admin['_id']}, {'$set': {'passwordHash': scrypt_hash(ADMIN_PASSWORD)}})
-
-    first_inst_id = None
-    for name, domain, auth_email in SEED_INSTITUTIONS:
-        inst = await db.institutions.find_one({'domain': domain})
-        if not inst:
-            inst_id = str(uuid.uuid4())
-            await db.institutions.insert_one({
-                '_id': inst_id, 'institutionId': inst_id, 'name': name, 'domain': domain,
-                'status': 'ACTIVE', 'createdBy': None, 'createdAt': iso(now_utc()),
-                'decidedBy': admin['_id'], 'decidedAt': iso(now_utc()),
-            })
-        else:
-            inst_id = inst['_id']
-        authority = await db.users.find_one({'email': auth_email})
-        if not authority:
-            authority = {
-                '_id': str(uuid.uuid4()), 'email': auth_email, 'emailDomain': domain,
-                'name': SEED_AUTHORITY_NAMES.get(auth_email, auth_email.split('@')[0]),
-                'role': 'AUTHORITY', 'institutionId': inst_id, 'approvalStatus': 'ACTIVE',
-                'passwordHash': scrypt_hash(DEMO_PASSWORD),
-                'approvedBy': admin['_id'], 'approvedAt': iso(now_utc()), 'isVerified': True,
-                'createdAt': iso(now_utc()),
-            }
-            await db.users.insert_one(authority)
-        elif not scrypt_verify(DEMO_PASSWORD, authority.get('passwordHash', '')):
-            await db.users.update_one({'_id': authority['_id']}, {'$set': {
-                'name': authority.get('name') or SEED_AUTHORITY_NAMES.get(auth_email, auth_email.split('@')[0]),
-                'passwordHash': scrypt_hash(DEMO_PASSWORD),
-            }})
-        if first_inst_id is None:
-            first_inst_id = inst_id
-
-    owner_email = 'budi.santoso@gmail.com'
-    owner = await db.users.find_one({'email': owner_email})
-    if not owner:
-        owner = {
-            '_id': str(uuid.uuid4()), 'email': owner_email, 'emailDomain': 'gmail.com',
-            'name': 'Budi Santoso',
-            'role': 'OWNER', 'institutionId': None, 'approvalStatus': 'ACTIVE',
-            'passwordHash': scrypt_hash(DEMO_PASSWORD),
-            'approvedBy': None, 'approvedAt': None, 'isVerified': True, 'createdAt': iso(now_utc()),
-        }
-        await db.users.insert_one(owner)
-    elif not scrypt_verify(DEMO_PASSWORD, owner.get('passwordHash', '')):
-        await db.users.update_one({'_id': owner['_id']}, {'$set': {
-            'name': owner.get('name') or 'Budi Santoso',
-            'passwordHash': scrypt_hash(DEMO_PASSWORD),
-        }})
-
-    existing = await db.documents.find_one({'ownerId': owner['_id'], 'status': 'PENDING'})
-    if not existing and first_inst_id:
-        title = f'Ijazah Sarjana - Budi Santoso {uuid.uuid4().hex[:8]}'
-        pdf = make_pdf(title)
-        try:
-            await _process_submit(pdf, 'ijazah-budi-santoso.pdf', owner['_id'], first_inst_id)
-        except HTTPException as e:
-            logger.warning(f'seed doc skipped: {e.detail}')
 
 
 @app.on_event('startup')
