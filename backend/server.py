@@ -507,6 +507,52 @@ async def _decide_authority(user_id: str, status: str, admin: dict):
     return {'userId': user_id, 'approvalStatus': status}
 
 
+@api.post('/admin/reset-database')
+async def reset_database(body: dict, user: dict = Depends(require_role('ADMIN'))):
+    admin_id = user['_id']
+    admin_email = user['email']
+    password = body.get('password') or ''
+    if not password:
+        raise HTTPException(status_code=422, detail='Password wajib diisi')
+    if not scrypt_verify(password, user.get('passwordHash', '')):
+        raise HTTPException(status_code=403, detail='Password salah')
+    
+    users_before = await db.users.count_documents({})
+    inst_before = await db.institutions.count_documents({})
+    docs_before = await db.documents.count_documents({})
+    chunks_before = await db.documentChunks.count_documents({})
+    audit_before = await db.auditChain.count_documents({})
+    
+    await db.users.delete_many({'_id': {'$ne': admin_id}})
+    await db.institutions.delete_many({})
+    await db.documents.delete_many({})
+    await db.documentChunks.delete_many({})
+    await db.otpSessions.delete_many({})
+    await db.auditChain.delete_many({})
+    await db.chainState.delete_many({})
+    await db.login_attempts.delete_many({})
+    
+    await append_audit('ADMIN_ACTION', admin_id, 'ADMIN', None, None,
+                       {'action': 'RESET_DATABASE', 'adminEmail': admin_email,
+                        'usersDeleted': users_before - 1,
+                        'institutionsDeleted': inst_before,
+                        'documentsDeleted': docs_before,
+                        'chunksDeleted': chunks_before,
+                        'auditLogsDeleted': audit_before})
+    
+    return {
+        'ok': True,
+        'adminPreserved': admin_email,
+        'deleted': {
+            'users': users_before - 1,
+            'institutions': inst_before,
+            'documents': docs_before,
+            'documentChunks': chunks_before,
+            'auditChain': audit_before,
+        }
+    }
+
+
 @api.get('/admin/audit-chain')
 async def audit_chain(page: int = 1, limit: int = 20, user: dict = Depends(require_role('ADMIN'))):
     skip = (page - 1) * limit

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, ShieldCheck, LinkSimple, SealCheck, SealWarning, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CheckCircle, XCircle, ShieldCheck, LinkSimple, SealCheck, SealWarning, CaretLeft, CaretRight, Trash } from "@phosphor-icons/react";
 import { Shell } from "@/components/Shell";
 import { Hash } from "@/components/Hash";
 import { api, apiError } from "@/lib/api";
@@ -18,6 +18,9 @@ export default function Admin({ view = "approvals" }) {
   const [chain, setChain] = useState(null);
   const [page, setPage] = useState(1);
   const limit = 15;
+  const [resetDialog, setResetDialog] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
   const loadPending = useCallback(() => {
     api.get("/admin/pending-authorities").then(({ data }) => setPending(data));
@@ -41,12 +44,64 @@ export default function Admin({ view = "approvals" }) {
     }
   };
 
+  const doReset = async () => {
+    if (!resetPassword) return;
+    setResetBusy(true);
+    try {
+      const { data } = await api.post("/admin/reset-database", { password: resetPassword });
+      toast.success(`Database di-reset. ${data.deleted.users} user, ${data.deleted.institutions} institusi, ${data.deleted.documents} dokumen dihapus. Admin dipertahankan: ${data.adminPreserved}`);
+      setResetDialog(false);
+      setResetPassword("");
+      if (view === "approvals") loadPending();
+    } catch (err) {
+      toast.error(apiError(err.response?.data?.detail));
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   return (
     <Shell nav={ADMIN_NAV}>
-      <div className="mb-10 flex items-center gap-3">
-        <ShieldCheck size={22} weight="fill" className="text-amber-seal" />
-        <p className="font-mono text-[12px] uppercase tracking-[0.3em] text-amber-seal">Konsol Admin</p>
+      <div className="mb-10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ShieldCheck size={22} weight="fill" className="text-amber-seal" />
+          <p className="font-mono text-[12px] uppercase tracking-[0.3em] text-amber-seal">Konsol Admin</p>
+        </div>
+        <button onClick={() => { setResetDialog(true); setResetPassword(""); }} data-testid="reset-database-button"
+          className="flex items-center gap-1.5 border border-rose-seal/40 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-rose-seal transition-colors duration-300 hover:bg-rose-seal/12">
+          <Trash size={13} weight="fill" /> Reset Database
+        </button>
       </div>
+
+      {resetDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-testid="reset-dialog">
+          <div className="panel w-full max-w-md p-6">
+            <h2 className="mb-2 text-xl font-medium text-bone">Reset Database</h2>
+            <p className="mb-4 font-mono text-[12px] text-bone/50">
+              Semua data akan dihapus kecuali akun admin Anda. Masukkan password admin untuk konfirmasi.
+            </p>
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              placeholder="Password admin"
+              data-testid="reset-password-input"
+              className="mb-4 w-full border border-hair bg-ink px-3 py-2 font-mono text-[13px] text-bone placeholder:text-bone/30"
+              onKeyDown={(e) => { if (e.key === "Enter") doReset(); }}
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setResetDialog(false); setResetPassword(""); }} data-testid="reset-cancel"
+                className="flex items-center gap-1.5 border border-hair px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-bone/60 hover:text-bone">
+                Batal
+              </button>
+              <button onClick={doReset} disabled={resetBusy || !resetPassword} data-testid="reset-confirm"
+                className="flex items-center gap-1.5 border border-rose-seal/40 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-rose-seal disabled:opacity-30 hover:bg-rose-seal/12">
+                {resetBusy ? "Mereset..." : "Konfirmasi Reset"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {view === "approvals" ? (
         <>
