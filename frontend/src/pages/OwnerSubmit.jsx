@@ -45,9 +45,7 @@ export default function OwnerSubmit() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("institutionId", institutionId);
-      const { data } = await api.post("/documents/submit", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post("/documents/submit", fd);
       setResult(data);
       setFile(null);
       toast.success("Dokumen diajukan — menunggu review");
