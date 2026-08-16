@@ -18,7 +18,7 @@ export default function OwnerSubmit() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    api.get("/institutions/active").then(({ data }) => {
+    api.get("/institutions/available").then(({ data }) => {
       setInstitutions(data);
       if (data[0]) setInstitutionId(data[0].institutionId);
     });

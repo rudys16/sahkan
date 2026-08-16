@@ -1,4 +1,4 @@
-"""Sahkan backend tests - covers auth, submit, decide, admin, audit chain."""
+"""Sahkan backend tests - covers register, login, submit, decide, admin, audit chain."""
 import os
 import io
 import time
@@ -8,6 +8,7 @@ import pytest
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://doc-sahkan.preview.emergentagent.com').rstrip('/')
 API = f"{BASE_URL}/api"
 OTP = "123456"
+DEMO_PASSWORD = "Sahkan!2026"  # password for seeded demo accounts
 
 # ---------- helpers ----------
 def make_pdf(title: str = "Test Doc") -> bytes:
@@ -26,36 +27,107 @@ def make_pdf(title: str = "Test Doc") -> bytes:
     return body
 
 
-def otp_login(session: requests.Session, email: str, purpose: str):
-    r = session.post(f"{API}/auth/otp/request", json={"email": email, "purpose": purpose})
+def register(session: requests.Session, name: str, email: str, password: str, role: str,
+             institutionId=None, newInstitutionName=None, newInstitutionDomain=None):
+    body = {"name": name, "email": email, "password": password, "role": role}
+    if role == "AUTHORITY":
+        if institutionId:
+            body["institutionId"] = institutionId
+        else:
+            body["newInstitutionName"] = newInstitutionName
+            body["newInstitutionDomain"] = newInstitutionDomain
+    r = session.post(f"{API}/auth/register/request", json=body)
     assert r.status_code == 200, r.text
-    r = session.post(f"{API}/auth/otp/verify", json={"email": email, "purpose": purpose, "otp": OTP})
+    r = session.post(f"{API}/auth/register/verify", json={"email": email, "otp": OTP})
     assert r.status_code == 200, r.text
     return r.json()["user"]
 
 
-# ---------- OWNER OTP flow ----------
-class TestOwnerAuth:
-    def test_otp_request_invalid_email(self):
-        r = requests.post(f"{API}/auth/otp/request", json={"email": "bad", "purpose": "OWNER_AUTH"})
+def login(session: requests.Session, email: str, password: str):
+    r = session.post(f"{API}/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return r.json()["user"]
+
+
+def seed_institution_id(domain: str) -> str:
+    r = requests.get(f"{API}/institutions/active")
+    assert r.status_code == 200
+    for i in r.json():
+        if i["domain"] == domain:
+            return i["institutionId"]
+    pytest.skip(f"Institusi {domain} tidak ada")
+
+
+# ---------- REGISTRATION ----------
+class TestRegister:
+    def test_register_invalid_email(self):
+        r = requests.post(f"{API}/auth/register/request",
+                          json={"name": "A", "email": "bad", "password": "12345678", "role": "OWNER"})
         assert r.status_code == 422
 
-    def test_otp_request_and_verify_owner(self):
+    def test_register_short_password(self):
+        r = requests.post(f"{API}/auth/register/request",
+                          json={"name": "A", "email": f"short_{int(time.time())}@example.com",
+                                "password": "123", "role": "OWNER"})
+        assert r.status_code == 422
+
+    def test_register_duplicate_email(self):
+        email = f"dup_{int(time.time())}@example.com"
         s = requests.Session()
-        user = otp_login(s, "budi.santoso@gmail.com", "OWNER_AUTH")
+        user = register(s, "Dup User", email, "Sah!12345678", "OWNER")
         assert user["role"] == "OWNER"
-        assert user["email"] == "budi.santoso@gmail.com"
+        r = requests.post(f"{API}/auth/register/request",
+                          json={"name": "Dup User", "email": email, "password": "Sah!12345678", "role": "OWNER"})
+        assert r.status_code == 409
+
+    def test_register_authority_requires_institution(self):
+        email = f"noinst_{int(time.time())}@universitasnusantara.ac.id"
+        r = requests.post(f"{API}/auth/register/request",
+                          json={"name": "No Inst", "email": email, "password": "Sah!12345678", "role": "AUTHORITY"})
+        assert r.status_code == 422
+
+    def test_register_owner_flow(self):
+        s = requests.Session()
+        email = f"owner_{int(time.time())}@example.com"
+        user = register(s, "Owner Test", email, "Sah!12345678", "OWNER")
+        assert user["role"] == "OWNER"
+        assert user["approvalStatus"] == "ACTIVE"
+        assert user["name"] == "Owner Test"
         me = s.get(f"{API}/auth/me")
         assert me.status_code == 200
         assert me.json()["role"] == "OWNER"
 
-    def test_otp_wrong_code(self):
+    def test_register_wrong_otp(self):
         s = requests.Session()
-        email = f"test_wrong_{int(time.time())}@example.com"
-        r = s.post(f"{API}/auth/otp/request", json={"email": email, "purpose": "OWNER_AUTH"})
+        email = f"wrongotp_{int(time.time())}@example.com"
+        r = s.post(f"{API}/auth/register/request",
+                   json={"name": "Wrong", "email": email, "password": "Sah!12345678", "role": "OWNER"})
         assert r.status_code == 200
-        r = s.post(f"{API}/auth/otp/verify", json={"email": email, "purpose": "OWNER_AUTH", "otp": "999999"})
+        r = s.post(f"{API}/auth/register/verify", json={"email": email, "otp": "999999"})
         assert r.status_code == 400
+
+
+# ---------- LOGIN (email+password) ----------
+class TestLogin:
+    def test_login_success(self):
+        s = requests.Session()
+        email = f"login_{int(time.time())}@example.com"
+        register(s, "Login User", email, "Sah!12345678", "OWNER")
+        s2 = requests.Session()
+        user = login(s2, email, "Sah!12345678")
+        assert user["email"] == email
+        assert s2.get(f"{API}/auth/me").status_code == 200
+
+    def test_login_wrong_password(self):
+        s = requests.Session()
+        email = f"badpw_{int(time.time())}@example.com"
+        register(s, "Bad PW", email, "Sah!12345678", "OWNER")
+        r = requests.post(f"{API}/auth/login", json={"email": email, "password": "wrongpass"})
+        assert r.status_code == 401
+
+    def test_login_unknown_email(self):
+        r = requests.post(f"{API}/auth/login", json={"email": f"nobody_{int(time.time())}@example.com", "password": "Sah!12345678"})
+        assert r.status_code == 401
 
 
 # ---------- ADMIN auth ----------
@@ -85,28 +157,34 @@ class TestInstitutions:
         domains = [i["domain"] for i in insts]
         assert "universitasnusantara.ac.id" in domains
 
+    def test_available_institutions_have_active_authority(self):
+        r = requests.get(f"{API}/institutions/available")
+        assert r.status_code == 200
+        insts = r.json()
+        # Seed institutions have ACTIVE authorities -> must be present
+        domains = [i["domain"] for i in insts]
+        assert "universitasnusantara.ac.id" in domains
+        assert len(insts) >= 1
+
 
 # ---------- Owner submit flow ----------
 class TestSubmitAndDecide:
     @pytest.fixture(scope="class")
     def owner_session(self):
         s = requests.Session()
-        otp_login(s, "budi.santoso@gmail.com", "OWNER_AUTH")
+        email = f"budi.submit.{int(time.time())}@example.com"
+        register(s, "Budi Submit", email, "Sah!12345678", "OWNER")
         return s
 
     @pytest.fixture(scope="class")
     def authority_session(self):
         s = requests.Session()
-        otp_login(s, "rektor@universitasnusantara.ac.id", "AUTHORITY_LOGIN")
+        login(s, "rektor@universitasnusantara.ac.id", DEMO_PASSWORD)
         return s
 
     @pytest.fixture(scope="class")
     def universitas_id(self):
-        r = requests.get(f"{API}/institutions/active")
-        for i in r.json():
-            if i["domain"] == "universitasnusantara.ac.id":
-                return i["institutionId"]
-        pytest.skip("Universitas Nusantara not seeded")
+        return seed_institution_id("universitasnusantara.ac.id")
 
     def test_submit_pdf(self, owner_session, universitas_id):
         pdf = make_pdf(f"Test-{time.time_ns()}")
@@ -155,10 +233,6 @@ class TestSubmitAndDecide:
         assert r.headers["content-type"].startswith("application/pdf")
         assert r.content[:5] == b"%PDF-"
 
-    def test_reject_without_reason_fails(self, authority_session):
-        # Use a different doc for reject flow — submit new
-        pass  # skip, tested via approve below
-
     def test_authority_approve(self, authority_session):
         r = authority_session.post(
             f"{API}/authority/documents/{pytest.shared_doc_id}/decide",
@@ -186,11 +260,10 @@ class TestSubmitAndDecide:
 class TestRejectFlow:
     def test_reject_requires_reason(self):
         owner = requests.Session()
-        otp_login(owner, "budi.santoso@gmail.com", "OWNER_AUTH")
+        login(owner, "budi.santoso@gmail.com", DEMO_PASSWORD)
         auth = requests.Session()
-        otp_login(auth, "rektor@universitasnusantara.ac.id", "AUTHORITY_LOGIN")
-        insts = requests.get(f"{API}/institutions/active").json()
-        inst_id = [i["institutionId"] for i in insts if i["domain"] == "universitasnusantara.ac.id"][0]
+        login(auth, "rektor@universitasnusantara.ac.id", DEMO_PASSWORD)
+        inst_id = seed_institution_id("universitasnusantara.ac.id")
 
         pdf = make_pdf(f"Reject-{time.time_ns()}")
         r = owner.post(f"{API}/documents/submit",
@@ -222,12 +295,12 @@ class TestAdmin:
         return s
 
     def test_pending_authorities_lists(self, admin_session):
-        # Create a pending authority
+        # Register a new authority joining an existing institution -> PENDING
         s = requests.Session()
+        inst_id = seed_institution_id("universitasnusantara.ac.id")
         new_email = f"dekan.test.{int(time.time())}@fk.universitasnusantara.ac.id"
-        user = otp_login(s, new_email, "AUTHORITY_LOGIN")
-        # It doesn't auto-join institution; approvalStatus is PENDING but institutionId is None.
-        # Still, admin/pending-authorities should include it.
+        user = register(s, "Dekan Test", new_email, "Sah!12345678", "AUTHORITY", institutionId=inst_id)
+        assert user["approvalStatus"] == "PENDING"
         r = admin_session.get(f"{API}/admin/pending-authorities")
         assert r.status_code == 200
         pending = r.json()
@@ -254,7 +327,7 @@ class TestAdmin:
 
     def test_non_admin_cannot_access_admin(self):
         owner = requests.Session()
-        otp_login(owner, "budi.santoso@gmail.com", "OWNER_AUTH")
+        login(owner, "budi.santoso@gmail.com", DEMO_PASSWORD)
         r = owner.get(f"{API}/admin/pending-authorities")
         assert r.status_code == 403
 
@@ -263,13 +336,13 @@ class TestAdmin:
 class TestGuards:
     def test_owner_cannot_access_authority_queue(self):
         s = requests.Session()
-        otp_login(s, "budi.santoso@gmail.com", "OWNER_AUTH")
+        login(s, "budi.santoso@gmail.com", DEMO_PASSWORD)
         r = s.get(f"{API}/authority/queue")
         assert r.status_code == 403
 
     def test_logout_clears_session(self):
         s = requests.Session()
-        otp_login(s, "budi.santoso@gmail.com", "OWNER_AUTH")
+        login(s, "budi.santoso@gmail.com", DEMO_PASSWORD)
         r = s.post(f"{API}/auth/logout")
         assert r.status_code == 200
         r = s.get(f"{API}/auth/me")

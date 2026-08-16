@@ -250,6 +250,7 @@ def recompute_log_hash(entry: dict) -> str:
 def public_user(u: dict) -> dict:
     return {
         'userId': u['_id'], 'email': u['email'], 'role': u['role'],
+        'name': u.get('name'),
         'institutionId': u.get('institutionId'), 'approvalStatus': u.get('approvalStatus'),
         'isVerified': u.get('isVerified', False),
     }
@@ -264,30 +265,64 @@ def domain_suffix_match(email_domain: str, inst_domain: str) -> bool:
 # ---------------------------------------------------------------------------
 # AUTH endpoints
 # ---------------------------------------------------------------------------
-@api.post('/auth/otp/request')
-async def otp_request(body: dict):
+@api.post('/auth/register/request')
+async def register_request(body: dict):
+    name = (body.get('name') or '').strip()
     email = (body.get('email') or '').strip().lower()
-    purpose = body.get('purpose')
+    password = body.get('password') or ''
+    role = body.get('role')
+    if not name:
+        raise HTTPException(status_code=422, detail='Nama wajib diisi')
     if '@' not in email or '.' not in email.split('@')[-1]:
         raise HTTPException(status_code=422, detail='Format email tidak valid')
-    if purpose not in ('OWNER_AUTH', 'AUTHORITY_LOGIN'):
-        raise HTTPException(status_code=422, detail='Tujuan tidak valid')
+    if len(password) < 8:
+        raise HTTPException(status_code=422, detail='Kata sandi minimal 8 karakter')
+    if role not in ('OWNER', 'AUTHORITY'):
+        raise HTTPException(status_code=422, detail='Peran tidak valid')
+    if await db.users.find_one({'email': email}):
+        raise HTTPException(status_code=409, detail='Email sudah terdaftar')
+
+    institution_id = None
+    new_inst = None
+    if role == 'AUTHORITY':
+        institution_id = body.get('institutionId')
+        new_name = (body.get('newInstitutionName') or '').strip()
+        new_domain = (body.get('newInstitutionDomain') or '').strip().lower()
+        has_existing = bool(institution_id)
+        has_new = bool(new_name and new_domain)
+        if has_existing == has_new:
+            raise HTTPException(status_code=422, detail='Pilih institusi aktif atau daftar institusi baru')
+        if has_existing:
+            inst = await db.institutions.find_one({'_id': institution_id, 'status': 'ACTIVE'})
+            if not inst:
+                raise HTTPException(status_code=422, detail='Institusi tidak ditemukan atau belum aktif')
+        else:
+            email_domain = email.split('@')[-1]
+            if not domain_suffix_match(email_domain, new_domain):
+                raise HTTPException(status_code=422, detail='Domain institusi harus cocok dengan domain email Anda')
+            if await db.institutions.find_one({'$or': [{'name': new_name}, {'domain': new_domain}]}):
+                raise HTTPException(status_code=409, detail='Institusi dengan nama/domain ini sudah ada')
+            new_inst = {'name': new_name, 'domain': new_domain}
+
     session_id = str(uuid.uuid4())
     await db.otpSessions.insert_one({
-        '_id': session_id, 'sessionId': session_id, 'email': email, 'purpose': purpose,
+        '_id': session_id, 'sessionId': session_id, 'email': email, 'purpose': 'REGISTER',
         'otpHash': scrypt_hash(DEV_OTP), 'attempts': 0, 'isVerified': False,
         'expiresAt': now_utc() + timedelta(minutes=5), 'createdAt': iso(now_utc()),
+        'payload': {
+            'name': name, 'passwordHash': scrypt_hash(password), 'role': role,
+            'institutionId': institution_id, 'newInst': new_inst,
+        },
     })
     return {'sessionId': session_id, 'devMode': True, 'message': 'Kode OTP demo: 123456'}
 
 
-@api.post('/auth/otp/verify')
-async def otp_verify(body: dict, response: Response):
+@api.post('/auth/register/verify')
+async def register_verify(body: dict, response: Response):
     email = (body.get('email') or '').strip().lower()
-    purpose = body.get('purpose')
     otp = (body.get('otp') or '').strip()
     session = await db.otpSessions.find_one(
-        {'email': email, 'purpose': purpose, 'isVerified': False},
+        {'email': email, 'purpose': 'REGISTER', 'isVerified': False},
         sort=[('createdAt', -1)],
     )
     if not session:
@@ -303,22 +338,60 @@ async def otp_verify(body: dict, response: Response):
         await db.otpSessions.update_one({'_id': session['_id']}, {'$inc': {'attempts': 1}})
         raise HTTPException(status_code=400, detail='Kode OTP salah')
     await db.otpSessions.update_one({'_id': session['_id']}, {'$set': {'isVerified': True}})
-    await db.otpSessions.delete_many({'email': email, 'purpose': purpose, '_id': {'$ne': session['_id']}})
+    await db.otpSessions.delete_many({'email': email, 'purpose': 'REGISTER', '_id': {'$ne': session['_id']}})
 
+    payload = session.get('payload') or {}
     email_domain = email.split('@')[-1]
-    user = await db.users.find_one({'email': email})
-    if not user:
-        role = 'OWNER' if purpose == 'OWNER_AUTH' else 'AUTHORITY'
-        approval = 'ACTIVE' if role == 'OWNER' else 'PENDING'
-        user = {
-            '_id': str(uuid.uuid4()), 'email': email, 'emailDomain': email_domain,
-            'role': role, 'institutionId': None, 'approvalStatus': approval,
-            'approvedBy': None, 'approvedAt': None, 'isVerified': True, 'createdAt': iso(now_utc()),
-        }
-        await db.users.insert_one(user)
-    else:
-        await db.users.update_one({'_id': user['_id']}, {'$set': {'isVerified': True}})
+    user_id = str(uuid.uuid4())
+    user = {
+        '_id': user_id, 'name': payload.get('name'), 'email': email, 'emailDomain': email_domain,
+        'role': payload.get('role'), 'passwordHash': payload.get('passwordHash'),
+        'institutionId': None, 'approvalStatus': 'ACTIVE',
+        'approvedBy': None, 'approvedAt': None, 'isVerified': True, 'createdAt': iso(now_utc()),
+    }
+    if user['role'] == 'AUTHORITY':
+        user['approvalStatus'] = 'PENDING'
+        inst_id = payload.get('institutionId')
+        new_inst = payload.get('newInst')
+        if new_inst:
+            inst_id = str(uuid.uuid4())
+            await db.institutions.insert_one({
+                '_id': inst_id, 'institutionId': inst_id, 'name': new_inst['name'], 'domain': new_inst['domain'],
+                'status': 'PENDING', 'createdBy': user_id, 'createdAt': iso(now_utc()),
+                'decidedBy': None, 'decidedAt': None,
+            })
+            await append_audit('ADMIN_ACTION', user_id, 'AUTHORITY', None, inst_id,
+                               {'action': 'INSTITUTION_CREATE', 'name': new_inst['name'], 'domain': new_inst['domain']})
+        user['institutionId'] = inst_id
+    await db.users.insert_one(user)
+    token = create_token(user)
+    set_auth_cookie(response, token)
+    return {'user': public_user(user)}
 
+
+@api.post('/auth/login')
+async def login(body: dict, response: Response):
+    email = (body.get('email') or '').strip().lower()
+    password = body.get('password') or ''
+    ident = f'user:{email}'
+    attempt = await db.login_attempts.find_one({'_id': ident})
+    if attempt and attempt.get('lockedUntil'):
+        lu = attempt['lockedUntil']
+        if lu.tzinfo is None:
+            lu = lu.replace(tzinfo=timezone.utc)
+        if lu > now_utc():
+            raise HTTPException(status_code=429, detail='Akun terkunci. Coba lagi dalam beberapa menit.')
+
+    user = await db.users.find_one({'email': email, 'role': {'$in': ['OWNER', 'AUTHORITY']}})
+    if not user or not scrypt_verify(password, user.get('passwordHash', '')):
+        count = (attempt.get('count', 0) if attempt else 0) + 1
+        update = {'count': count}
+        if count >= 5:
+            update['lockedUntil'] = now_utc() + timedelta(minutes=15)
+        await db.login_attempts.update_one({'_id': ident}, {'$set': update}, upsert=True)
+        raise HTTPException(status_code=401, detail='Email atau kata sandi salah')
+
+    await db.login_attempts.delete_one({'_id': ident})
     token = create_token(user)
     set_auth_cookie(response, token)
     return {'user': public_user(user)}
@@ -377,39 +450,18 @@ async def active_institutions():
     return [{'institutionId': d['_id'], 'name': d['name'], 'domain': d['domain']} for d in docs]
 
 
-@api.post('/institutions')
-async def create_institution(body: dict, user: dict = Depends(require_role('AUTHORITY'))):
-    name = (body.get('name') or '').strip()
-    domain = (body.get('domain') or '').strip().lower()
-    if not name or not domain:
-        raise HTTPException(status_code=422, detail='Nama dan domain wajib diisi')
-    if not domain_suffix_match(user['emailDomain'], domain):
-        raise HTTPException(status_code=422, detail='Domain institusi harus cocok dengan domain email Anda')
-    if await db.institutions.find_one({'$or': [{'name': name}, {'domain': domain}]}):
-        raise HTTPException(status_code=409, detail='Institusi dengan nama/domain ini sudah ada')
-    inst_id = str(uuid.uuid4())
-    await db.institutions.insert_one({
-        '_id': inst_id, 'institutionId': inst_id, 'name': name, 'domain': domain,
-        'status': 'PENDING', 'createdBy': user['_id'], 'createdAt': iso(now_utc()),
-        'decidedBy': None, 'decidedAt': None,
-    })
-    await db.users.update_one({'_id': user['_id']}, {'$set': {'institutionId': inst_id, 'approvalStatus': 'PENDING'}})
-    await append_audit('ADMIN_ACTION', user['_id'], 'AUTHORITY', None, inst_id,
-                       {'action': 'INSTITUTION_CREATE', 'name': name, 'domain': domain})
-    return {'institutionId': inst_id, 'status': 'PENDING'}
-
-
-@api.post('/institutions/join')
-async def join_institution(body: dict, user: dict = Depends(require_role('AUTHORITY'))):
-    inst_id = body.get('institutionId')
-    inst = await db.institutions.find_one({'_id': inst_id})
-    if not inst:
-        raise HTTPException(status_code=404, detail='Institusi tidak ditemukan')
-    if not domain_suffix_match(user['emailDomain'], inst['domain']):
-        raise HTTPException(status_code=422, detail='Domain email Anda tidak cocok dengan institusi ini')
-    await db.users.update_one({'_id': user['_id']}, {'$set': {'institutionId': inst_id, 'approvalStatus': 'PENDING'}})
-    await append_audit('ADMIN_ACTION', user['_id'], 'AUTHORITY', None, inst_id, {'action': 'INSTITUTION_JOIN'})
-    return {'institutionId': inst_id, 'status': 'PENDING'}
+@api.get('/institutions/available')
+async def available_institutions():
+    """Institutions that have at least one ACTIVE authority (for the owner submit form)."""
+    pipeline = [
+        {'$match': {'role': 'AUTHORITY', 'approvalStatus': 'ACTIVE', 'institutionId': {'$ne': None}}},
+        {'$group': {'_id': '$institutionId'}},
+    ]
+    ids = [d['_id'] for d in await db.users.aggregate(pipeline).to_list(500)]
+    if not ids:
+        return []
+    docs = await db.institutions.find({'_id': {'$in': ids}, 'status': 'ACTIVE'}).sort('name', 1).to_list(500)
+    return [{'institutionId': d['_id'], 'name': d['name'], 'domain': d['domain']} for d in docs]
 
 
 # ---------------------------------------------------------------------------
@@ -423,7 +475,7 @@ async def pending_authorities(user: dict = Depends(require_role('ADMIN'))):
         inst = await db.institutions.find_one({'_id': u.get('institutionId')}) if u.get('institutionId') else None
         out.append({
             'userId': u['_id'], 'email': u['email'], 'emailDomain': u['emailDomain'],
-            'createdAt': u['createdAt'],
+            'name': u.get('name'), 'createdAt': u['createdAt'],
             'institution': {'name': inst['name'], 'domain': inst['domain']} if inst else None,
         })
     return out
@@ -765,6 +817,14 @@ SEED_INSTITUTIONS = [
     ('PT Cipta Karya', 'ciptakarya.co.id', 'direktur@ciptakarya.co.id'),
 ]
 
+SEED_AUTHORITY_NAMES = {
+    'rektor@universitasnusantara.ac.id': 'Rektor Universitas Nusantara',
+    'sekjen@kemkes.go.id': 'Sekretaris Jenderal Kemenkes',
+    'direktur@ciptakarya.co.id': 'Direktur PT Cipta Karya',
+}
+
+DEMO_PASSWORD = os.environ.get('DEMO_PASSWORD', 'Sahkan!2026')
+
 
 async def seed():
     admin = await db.users.find_one({'email': ADMIN_EMAIL, 'role': 'ADMIN'})
@@ -795,11 +855,18 @@ async def seed():
         if not authority:
             authority = {
                 '_id': str(uuid.uuid4()), 'email': auth_email, 'emailDomain': domain,
+                'name': SEED_AUTHORITY_NAMES.get(auth_email, auth_email.split('@')[0]),
                 'role': 'AUTHORITY', 'institutionId': inst_id, 'approvalStatus': 'ACTIVE',
+                'passwordHash': scrypt_hash(DEMO_PASSWORD),
                 'approvedBy': admin['_id'], 'approvedAt': iso(now_utc()), 'isVerified': True,
                 'createdAt': iso(now_utc()),
             }
             await db.users.insert_one(authority)
+        elif not scrypt_verify(DEMO_PASSWORD, authority.get('passwordHash', '')):
+            await db.users.update_one({'_id': authority['_id']}, {'$set': {
+                'name': authority.get('name') or SEED_AUTHORITY_NAMES.get(auth_email, auth_email.split('@')[0]),
+                'passwordHash': scrypt_hash(DEMO_PASSWORD),
+            }})
         if first_inst_id is None:
             first_inst_id = inst_id
 
@@ -808,10 +875,17 @@ async def seed():
     if not owner:
         owner = {
             '_id': str(uuid.uuid4()), 'email': owner_email, 'emailDomain': 'gmail.com',
+            'name': 'Budi Santoso',
             'role': 'OWNER', 'institutionId': None, 'approvalStatus': 'ACTIVE',
+            'passwordHash': scrypt_hash(DEMO_PASSWORD),
             'approvedBy': None, 'approvedAt': None, 'isVerified': True, 'createdAt': iso(now_utc()),
         }
         await db.users.insert_one(owner)
+    elif not scrypt_verify(DEMO_PASSWORD, owner.get('passwordHash', '')):
+        await db.users.update_one({'_id': owner['_id']}, {'$set': {
+            'name': owner.get('name') or 'Budi Santoso',
+            'passwordHash': scrypt_hash(DEMO_PASSWORD),
+        }})
 
     existing = await db.documents.find_one({'ownerId': owner['_id'], 'status': 'PENDING'})
     if not existing and first_inst_id:

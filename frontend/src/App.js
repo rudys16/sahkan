@@ -6,6 +6,7 @@ import { AuthProvider, useAuth, homeFor } from "@/context/AuthContext";
 import { SealStamp } from "@/components/SealStamp";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import AdminLogin from "@/pages/AdminLogin";
 import OwnerSubmit from "@/pages/OwnerSubmit";
 import OwnerDocs from "@/pages/OwnerDocs";
@@ -47,6 +48,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/verifikasi" element={<VerifyPublic />} />
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+          <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           <Route path="/admin/login" element={<PublicOnly><AdminLogin /></PublicOnly>} />
 
           <Route path="/owner" element={<Guard role="OWNER"><OwnerSubmit /></Guard>} />

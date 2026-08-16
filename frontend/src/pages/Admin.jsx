@@ -63,7 +63,8 @@ export default function Admin({ view = "approvals" }) {
             <div className="panel overflow-hidden">
               <table className="w-full border-collapse text-left" data-testid="pending-authorities-table">
                 <thead>
-                  <tr className="border-b border-hair font-mono text-[11px] uppercase tracking-widest text-bone/40">
+                    <tr className="border-b border-hair font-mono text-[11px] uppercase tracking-widest text-bone/40">
+                    <th className="px-5 py-4 font-normal">Nama</th>
                     <th className="px-5 py-4 font-normal">Email</th>
                     <th className="px-5 py-4 font-normal">Institusi</th>
                     <th className="px-5 py-4 font-normal">Domain</th>
@@ -74,6 +75,7 @@ export default function Admin({ view = "approvals" }) {
                 <tbody>
                   {pending.map((u) => (
                     <tr key={u.userId} data-testid={`pending-row-${u.userId}`} className="border-b border-hair last:border-0 hover:bg-panel-hi">
+                      <td className="px-5 py-4 font-mono text-[13px] text-bone">{u.name || u.email}</td>
                       <td className="px-5 py-4 font-mono text-[13px] text-bone">{u.email}</td>
                       <td className="px-5 py-4 text-sm text-bone/80">{u.institution?.name || "—"}</td>
                       <td className="px-5 py-4 font-mono text-[12px] text-bone/50">{u.institution?.domain || u.emailDomain}</td>
