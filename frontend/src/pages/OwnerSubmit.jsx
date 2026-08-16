@@ -50,7 +50,13 @@ export default function OwnerSubmit() {
       setFile(null);
       toast.success("Dokumen diajukan — menunggu review");
     } catch (err) {
-      toast.error(apiError(err.response?.data?.detail));
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (status === 409) {
+        toast.error(detail || "Dokumen ini sudah pernah didaftarkan sebelumnya.");
+      } else {
+        toast.error(apiError(detail));
+      }
     } finally {
       setBusy(false);
     }
