@@ -170,20 +170,23 @@ class TestInstitutions:
 # ---------- Owner submit flow ----------
 class TestSubmitAndDecide:
     @pytest.fixture(scope="class")
-    def owner_session(self):
+    @classmethod
+    def owner_session(cls):
         s = requests.Session()
         email = f"budi.submit.{int(time.time())}@example.com"
         register(s, "Budi Submit", email, "Sah!12345678", "OWNER")
         return s
 
     @pytest.fixture(scope="class")
-    def authority_session(self):
+    @classmethod
+    def authority_session(cls):
         s = requests.Session()
         login(s, "rektor@universitasnusantara.ac.id", DEMO_PASSWORD)
         return s
 
     @pytest.fixture(scope="class")
-    def universitas_id(self):
+    @classmethod
+    def universitas_id(cls):
         return seed_institution_id("universitasnusantara.ac.id")
 
     def test_submit_pdf(self, owner_session, universitas_id):
@@ -288,7 +291,8 @@ class TestRejectFlow:
 # ---------- Admin flow ----------
 class TestAdmin:
     @pytest.fixture(scope="class")
-    def admin_session(self):
+    @classmethod
+    def admin_session(cls):
         s = requests.Session()
         r = s.post(f"{API}/auth/admin/login", json={"email": "admin@sahkan.id", "password": "Sahkan!Admin2026"})
         assert r.status_code == 200
