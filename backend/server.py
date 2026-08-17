@@ -749,6 +749,9 @@ async def decide_document(doc_id: str, body: dict, user: dict = Depends(require_
         '$unset': {'encryptedBlob': '', 'pendingExpiresAt': ''},
     })
 
+    # Cleanup: chunks tidak diperlukan lagi setelah diputuskan
+    await db.documentChunks.delete_many({'docHash': doc['docHash']})
+
     await append_audit('DECIDE', user['_id'], 'AUTHORITY', doc['docHash'], user['institutionId'],
                        {'decision': decision, 'rejectionReasonCode': reason if decision == 'REJECTED' else None,
                         'keyIdentifier': SIGNING_KEY_ID})
